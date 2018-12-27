@@ -20,8 +20,11 @@ Process updates the local state
 [Reactive pipeline with Kafka source](https://projectreactor.io/docs/kafka/release/reference/#kafka-source)
 
     
-    orderReceiver.receiveExactlyOnce()
-        .compose(createBlock(orderSender.transactionManager()))
+    orderReceiver
+        .receiveExactlyOnce(orderSender.transactionManager()))
+        .compose(createBlock(orderSender.transactionManager(),
+                 PlatformTransactionBlock.createBlock(transactionTemplate))
+                    .)
         .concatMap(b -> b.items()
             .map(r -> r.value)
             .flatMap(b.once(storage::createOrder))
@@ -37,12 +40,22 @@ Process updates the local state
         .subscribe()
 
     orderSender = 
-    orderReceiver
-        .compose(ExactlyOnceBlock
-                    .synchronizedWith(orderSender)
-                    .containing(PlatformTransactionBlock.from(transactionTemplate))
-                    .receive())
-        .concatMap(b -> b.run())
+
+    ExactlyOnceBlock
+        .createBlock(orderSender,
+            PlatformTransactionBlock.createBlock(transactionTemplate))
+        .receiveFrom(orderReceiver,
+        b ->
+            b.items()
+                    .map(r -> r.value)
+                    .flatMap(b.once(storage::createOrder))
+                    .flatMap(order -> service.getArticleAvailabilities(order))
+                        .flatMap(b.execute(a -> storage.setAvailability(order, a))
+                        .compose(availabilitySender)
+                        .all(a -> a.qty >= 0)
+                        .filter(Boolean.TRUE::equals)
+                        .compose(orderSender::send))
+                        .timeout(Duration.ofSeconds(30)))
 
 
 Block:
