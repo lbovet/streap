@@ -1,4 +1,4 @@
-package li.chee.streap.core;
+package io.streap.core;
 
 import reactor.core.publisher.Mono;
 
@@ -11,7 +11,7 @@ public class BlockWrapper implements Block {
 
     private Block wrappedBlock;
 
-    public void setWrappedBlock(Block wrappedBlock) {
+    public BlockWrapper(Block wrappedBlock) {
         this.wrappedBlock = wrappedBlock;
     }
 

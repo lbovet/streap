@@ -1,4 +1,4 @@
-package li.chee.streap.core;
+package io.streap.core;
 
 import reactor.core.publisher.Flux;
 

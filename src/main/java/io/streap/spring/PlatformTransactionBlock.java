@@ -1,6 +1,6 @@
-package li.chee.streap.spring;
+package io.streap.spring;
 
-import li.chee.streap.core.SingleThreadBlock;
+import io.streap.core.SingleThreadBlock;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 

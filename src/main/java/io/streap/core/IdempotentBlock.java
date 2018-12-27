@@ -1,4 +1,4 @@
-package li.chee.streap.core;
+package io.streap.core;
 
 import reactor.core.publisher.Flux;
 
@@ -7,7 +7,7 @@ import java.util.function.Function;
 /**
  * Block providing idempotence by skipping non-idempotent operations.
  */
-public interface IdempotentBlock<T> extends Block {
+public interface IdempotentBlock<T> extends ProcessingBlock<T> {
     /**
      * Runs an non-idempotent operation producing a side effect.
      * This operation will not be execute again. E.g. when events are replayed after failure due to broker unavailability.

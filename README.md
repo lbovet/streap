@@ -21,42 +21,48 @@ Process updates the local state
 
     
     orderReceiver
-        .receiveExactlyOnce(orderSender.transactionManager()))
-        .compose(createBlock(orderSender.transactionManager(),
+        .receiveExactlyOnce(confirmationSender.transactionManager()))
+        .compose(createBlock(confirmationSender.transactionManager(),
                  PlatformTransactionBlock.createBlock(transactionTemplate))
-                    .)
+                    .transformer())
         .concatMap(b -> b.items()
             .map(r -> r.value)
             .flatMap(b.once(storage::createOrder))
             .flatMap(order -> service.getArticleAvailabilities(order))
                 .flatMap(b.execute(a -> storage.setAvailability(order, a))
-                .compose(availabilitySender)
+                .compose(sendAvailability)
                 .all(a -> a.qty >= 0)
                 .filter(Boolean.TRUE::equals)
-                .compose(orderSender::send))
+                .compose(sendConfirmation)
                 .timeout(Duration.ofSeconds(30)))
             .doOnComplete(b::commit)
             .doOnError(b::abort))
         .subscribe()
 
+    sendAvailability = f ->
+        f.flatMap( a -> 
+
+    
+
+
     orderSender = 
 
     ExactlyOnceBlock
-        .createBlock(orderSender,
+        .createBlock(confirmationSender.transactionManager(),
             PlatformTransactionBlock.createBlock(transactionTemplate))
         .receiveFrom(orderReceiver,
-        b ->
-            b.items()
-                    .map(r -> r.value)
-                    .flatMap(b.once(storage::createOrder))
-                    .flatMap(order -> service.getArticleAvailabilities(order))
-                        .flatMap(b.execute(a -> storage.setAvailability(order, a))
-                        .compose(availabilitySender)
-                        .all(a -> a.qty >= 0)
-                        .filter(Boolean.TRUE::equals)
-                        .compose(orderSender::send))
-                        .timeout(Duration.ofSeconds(30)))
-
+            b ->
+                b.items()
+                        .map(r -> r.value)
+                        .flatMap(b.once(storage::createOrder))
+                        .flatMap(order -> service.getArticleAvailabilities(order))
+                            .flatMap(b.execute(a -> storage.setAvailability(order, a))
+                            .compose(availabilitySender)
+                            .all(a -> a.qty >= 0)
+                            .filter(Boolean.TRUE::equals)
+                            .compose(confirmationSender::send))
+                            .timeout(Duration.ofSeconds(30)))
+        .subscribe()
 
 Block:
     
