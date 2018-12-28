@@ -48,6 +48,7 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
         block.wrap((x)->
                 jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("peter");
 
+        Thread.sleep(500);
         assertFalse(block.isAborted());
         assertFalse(block.isCompleted());
         block.commit();

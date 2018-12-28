@@ -1,19 +1,26 @@
 package io.streap.spring;
 
+import io.streap.core.Block;
 import io.streap.core.SingleThreadBlock;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 /**
  * A block running operations inside a Spring Transaction.
  */
 public class PlatformTransactionBlock extends SingleThreadBlock {
 
-    private TransactionStatus transactionStatus;
+    public static Supplier<Block> supplier(TransactionTemplate transactionTemplate) {
+        return () -> new PlatformTransactionBlock(transactionTemplate);
+    }
+
     private static ExecutorService executorService = Executors.newCachedThreadPool();
+
+    private TransactionStatus transactionStatus;
 
     public PlatformTransactionBlock(TransactionTemplate transactionTemplate) {
         this(transactionTemplate, executorService);

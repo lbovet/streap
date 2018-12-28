@@ -1,6 +1,9 @@
 package io.streap.kafka;
 
 import io.streap.test.EmbeddedKafkaSupport;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
@@ -23,25 +26,62 @@ public class ReactorKafkaTest {
     public static KafkaEmbedded embeddedKafka = EmbeddedKafkaSupport.init();
 
     @Test
-    public void testSendReceive() throws InterruptedException {
+    public void testAtLeastOnce() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
 
-        KafkaSender.create(senderOptions())
-                .send(Mono.just(SenderRecord.create("reactor-kafka", null, null, 1, "hello", 1)))
-                .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
-                .subscribe();
-
         KafkaReceiver
-                .create(receiverOptions("reactor-kafka"))
+                .create(receiverOptions("at.least.once.In"))
                 .receive()
                 .doOnNext(m -> System.out.println("Received:" + m.value()))
                 .doOnNext(m -> latch.countDown())
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
+        Thread.sleep(500);
+
+        KafkaSender.create(senderOptions())
+                .send(Mono.just(SenderRecord.create("at.least.once.In", null, null, 1, "hello", 1)))
+                .then()
+                .doOnError(Throwable::printStackTrace)
+                .doOnSuccess(s -> System.out.println("Sent"))
+                .subscribe();
+
+
         latch.await(5, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
     }
+
+    @Test
+    public void testExactlyOnce() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        KafkaSender sender = KafkaSender.create(senderOptions()
+                .producerProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "SampleTxn")
+                .producerProperty(ProducerConfig.ACKS_CONFIG, "all"));
+
+        KafkaReceiver
+                .create(receiverOptions("exactly.once.In")
+                        .consumerProperty(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))
+                .receiveExactlyOnce(sender.transactionManager())
+                .doOnNext(m -> System.out.println("Received batch:" + m))
+                .concatMap(f -> f)
+                .doOnNext(i -> System.out.println("Received item:" + i))
+                .doOnNext(i -> latch.countDown())
+                .onErrorResume(e -> sender.transactionManager().abort().then(Mono.error(e)))
+                .subscribe();
+
+        Thread.sleep(1000);
+
+        KafkaSender.create(senderOptions())
+                .send(Mono.just(SenderRecord.create("exactly.once.In", null, null, 1, "hello", 1)))
+                .then()
+                .doOnError(Throwable::printStackTrace)
+                .doOnSuccess(s -> System.out.println("Sent"))
+                .subscribe();
+
+        latch.await(5, TimeUnit.SECONDS);
+        assertEquals(0L, latch.getCount());
+    }
+
+
 }

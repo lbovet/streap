@@ -23,8 +23,7 @@ Process updates the local state
     orderReceiver
         .receiveExactlyOnce(confirmationSender.transactionManager()))
         .compose(createBlock(confirmationSender.transactionManager(),
-                 PlatformTransactionBlock.createBlock(transactionTemplate))
-                    .transformer())
+                 PlatformTransactionBlock.supplier(transactionTemplate)))
         .concatMap(b -> b.items()
             .map(r -> r.value)
             .flatMap(b.once(storage::createOrder))
