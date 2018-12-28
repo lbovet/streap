@@ -7,8 +7,9 @@
         </encoder>
     </appender>
     <logger name="org.springframework" level="WARN"/>
-    <logger name="com.springfrosch" level="INFO"/>
-    <root level="INFO">
+    <logger name="org.apache.kafka" level="OFF"/>
+    <logger name="org.apache.zookeeper" level="OFF"/>
+    <root level="WARN">
         <appender-ref ref="CONSOLE"/>
     </root>
 </configuration>

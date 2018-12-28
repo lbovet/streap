@@ -1,9 +1,6 @@
 package io.streap.kafka;
 
-import io.streap.core.OffsetStore;
-import io.streap.core.Block;
-import io.streap.core.BlockWrapper;
-import io.streap.core.ProcessingBlock;
+import io.streap.core.*;
 import reactor.core.publisher.Flux;
 import reactor.kafka.sender.TransactionManager;
 
@@ -13,20 +10,19 @@ import java.util.function.Supplier;
 /**
  * A block for receiving and sending Kafka messages with exactly-one semantics.
  */
-public class ExactlyOnceBlock<T> extends BlockWrapper implements ProcessingBlock<T> {
+public class ExactlyOnceBlock<T> extends BlockWrapper implements IdempotentBlock<T> {
 
-    private static class BlockBuilder {
+    private static class ProcessingBlockBuilder {
         Supplier<Block> innerBlockSupplier;
         TransactionManager transactionManager;
-        OffsetStore offsetStore;
 
-        private BlockBuilder(TransactionManager transactionManager, Supplier<Block> innerBlockSupplier) {
+        private ProcessingBlockBuilder(TransactionManager transactionManager, Supplier<Block> innerBlockSupplier) {
             this.transactionManager = transactionManager;
             this.innerBlockSupplier = innerBlockSupplier;
         }
 
-        public void with(OffsetStore offsetStore) {
-            this.offsetStore = offsetStore;
+        public IdempotentBlockBuilder with(OffsetStore offsetStore) {
+            return new IdempotentBlockBuilder(this, offsetStore);
         }
 
         public <U> Function<Flux<Flux<U>>, Flux<? extends ProcessingBlock<U>>> transformer() {
@@ -34,8 +30,27 @@ public class ExactlyOnceBlock<T> extends BlockWrapper implements ProcessingBlock
         }
     }
 
-    public static BlockBuilder createBlock(TransactionManager transactionManager, Supplier<Block> innerBlockSupplier) {
-        return new BlockBuilder(transactionManager, innerBlockSupplier);
+    private static class IdempotentBlockBuilder {
+        ProcessingBlockBuilder blockBuilder;
+        OffsetStore offsetStore;
+
+        public IdempotentBlockBuilder(ProcessingBlockBuilder blockBuilder, OffsetStore offsetStore) {
+            this.blockBuilder = blockBuilder;
+            this.offsetStore = offsetStore;
+        }
+
+        public <U> Function<Flux<Flux<U>>, Flux<? extends IdempotentBlock<U>>> transformer() {
+            return f -> f.map( items -> {
+                ExactlyOnceBlock<U> block = new ExactlyOnceBlock<>(blockBuilder.transactionManager,
+                        blockBuilder.innerBlockSupplier.get(), items);
+                block.setOffsetStore(offsetStore);
+                return block;
+            });
+        }
+    }
+
+    public static ProcessingBlockBuilder createBlock(TransactionManager transactionManager, Supplier<Block> innerBlockSupplier) {
+        return new ProcessingBlockBuilder(transactionManager, innerBlockSupplier);
     }
 
     private TransactionManager transactionManager;
@@ -69,4 +84,8 @@ public class ExactlyOnceBlock<T> extends BlockWrapper implements ProcessingBlock
         transactionManager.abort();
     }
 
+    @Override
+    public <U> Function<T, Flux<U>> once(Function<T, U> fn) {
+        return null;
+    }
 }

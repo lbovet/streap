@@ -1,29 +1,45 @@
 package io.streap.test;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
-import org.springframework.test.annotation.DirtiesContext;
+import reactor.kafka.receiver.ReceiverOptions;
+import reactor.kafka.sender.SenderOptions;
 
-@DirtiesContext
-@EmbeddedKafka(partitions = 1, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
-public abstract class EmbeddedKafkaSupport {
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+public class EmbeddedKafkaSupport {
 
-    //FIXME: everything below here is a fix for the IDE - else @EmbeddedKafka should be enough
-    @Autowired
-    public KafkaEmbedded kafkaEmbedded;
-
-    @ClassRule
-    public static KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 0);
-
-    @BeforeClass
-    public static void setUpClass() {
-        //FIXME: Couldn't find kafka server configurations - kafka server is listening on a random port so i overwrite the client config here should be other way around
-        System.setProperty("spring.kafka.bootstrap-servers", embeddedKafka.getBrokersAsString());
-        System.setProperty("spring.cloud.stream.kafka.binder.zkNodes", embeddedKafka.getZookeeperConnectionString());
+    private static KafkaEmbedded kafka;
+    public static KafkaEmbedded init() {
+        if(kafka == null) {
+            kafka = new KafkaEmbedded(1, true, 0);
+        }
+        return kafka;
     }
 
+    public static <T,U> SenderOptions<T,U> senderOptions() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBrokersAsString());
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return SenderOptions.<T, U>create(props).maxInFlight(1024);
+    }
+
+    public static <T,U> ReceiverOptions<T, U> receiverOptions(String topic) {
+        Map<String, Object> consumerProps = new HashMap<>();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBrokersAsString());
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "sample-group");
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class);
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        return ReceiverOptions.<T, U>create(consumerProps).subscription(Collections.singleton(topic));
+    }
 }

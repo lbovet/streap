@@ -13,9 +13,10 @@ import java.util.concurrent.Executors;
 public class PlatformTransactionBlock extends SingleThreadBlock {
 
     private TransactionStatus transactionStatus;
+    private static ExecutorService executorService = Executors.newCachedThreadPool();
 
     public PlatformTransactionBlock(TransactionTemplate transactionTemplate) {
-        this(transactionTemplate, Executors.newCachedThreadPool());
+        this(transactionTemplate, executorService);
     }
 
     public PlatformTransactionBlock(TransactionTemplate transactionTemplate, ExecutorService executorService) {
@@ -46,7 +47,4 @@ public class PlatformTransactionBlock extends SingleThreadBlock {
         transactionStatus.setRollbackOnly();
         super.abort();
     }
-
-
-
 }
