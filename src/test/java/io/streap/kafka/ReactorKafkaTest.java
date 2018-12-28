@@ -56,21 +56,19 @@ public class ReactorKafkaTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         KafkaSender sender = KafkaSender.create(senderOptions()
-                .producerProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "SampleTxn")
-                .producerProperty(ProducerConfig.ACKS_CONFIG, "all"));
+                .producerProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "SampleTxn"));
 
         KafkaReceiver
-                .create(receiverOptions("exactly.once.In")
-                        .consumerProperty(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))
+                .create(receiverOptions("exactly.once.In"))
                 .receiveExactlyOnce(sender.transactionManager())
                 .doOnNext(m -> System.out.println("Received batch:" + m))
                 .concatMap(f -> f)
-                .doOnNext(i -> System.out.println("Received item:" + i))
+                .doOnNext(i -> System.out.println("Received item:" + i.value()))
                 .doOnNext(i -> latch.countDown())
                 .onErrorResume(e -> sender.transactionManager().abort().then(Mono.error(e)))
                 .subscribe();
 
-        Thread.sleep(1000);
+        Thread.sleep(500);
 
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("exactly.once.In", null, null, 1, "hello", 1)))
@@ -79,7 +77,7 @@ public class ReactorKafkaTest {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        latch.await(5, TimeUnit.SECONDS);
+        latch.await(7, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
     }
 

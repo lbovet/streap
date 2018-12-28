@@ -80,13 +80,13 @@ public class ExactlyOnceBlock<U, V> extends BlockDecorator implements Idempotent
     @Override
     public void commit() {
         super.commit();
-        transactionManager.commit();
+        transactionManager.commit().subscribe();
     }
 
     @Override
     public void abort() {
         super.abort();
-        transactionManager.abort();
+        transactionManager.abort().subscribe();
     }
 
     @Override
