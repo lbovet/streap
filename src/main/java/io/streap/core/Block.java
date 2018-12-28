@@ -10,8 +10,7 @@ import java.util.function.Function;
 public interface Block {
 
     /**
-     * Wraps a function so that it runs in the context of the block, whatever it means.
-     * @return the wrapped function with
+     * Wraps a function so that it runs in the context of the block.
      */
     <U,V> Function<U,Mono<V>> wrap(Function<U,V> fn);
 

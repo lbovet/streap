@@ -6,7 +6,7 @@ package io.streap.core;
 public interface OffsetStore {
 
     /**
-     * Note: This will not overwrite a higher value.
+     * Note: This never overwrites a higher value.
      */
     void write(long offset);
 

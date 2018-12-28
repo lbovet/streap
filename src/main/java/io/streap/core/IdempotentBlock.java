@@ -10,11 +10,11 @@ import java.util.function.Function;
  */
 public interface IdempotentBlock<T> extends ProcessingBlock<T> {
     /**
-     * Runs an non-idempotent operation producing a side effect inside the context of the block.
-     * This operation will not be wrap again. E.g. when events are replayed after failure due to broker unavailability.
+     * Wraps an non-idempotent operation producing a side effect inside the context of the block.
+     * This operation will not be run again. E.g. when events are replayed after failure due to broker unavailability.
      * <p>
      * Use {@link Block#wrap(Function)} for running idempotent operations.
-     * They will be wrap again. E.g. when events are replayed after failure due to broker unavailability.
+     * They will be run again. E.g. when events are replayed after failure due to broker unavailability.
      */
     Function<T, Mono<T>> wrapOnce(Consumer<T> operation);
 }
