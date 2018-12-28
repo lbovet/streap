@@ -62,7 +62,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
-                .doOnNext(b-> System.out.println("Got batch"+ b))
+                .doOnNext(b-> System.out.println("Got batch"))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransactionBlock.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
@@ -113,7 +113,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         Function<String,String> saveName = (name) -> {
             jdbcTemplate.update("INSERT INTO PERSON(NAME) VALUES (?)", name);
             System.out.println("Wrote "+name);
-            if(name.equals("peter")) {
+            if(name.equals("paul")) {
                 throw new RuntimeException("I don't like him");
             }
             return name;
@@ -127,7 +127,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
-                .doOnNext(b-> System.out.println("Got batch"+ b))
+                .doOnNext(b -> System.out.println("Got batch"+ b))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransactionBlock.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
@@ -173,7 +173,5 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .stream()
                 .map(l -> l.get("NAME"))
                 .count());
-
-
     }
 }
