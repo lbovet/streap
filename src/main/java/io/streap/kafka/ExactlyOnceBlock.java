@@ -25,8 +25,8 @@ public class ExactlyOnceBlock<U, V> extends BlockDecorator implements Idempotent
             this.innerBlockSupplier = innerBlockSupplier;
         }
 
-        public IdempotentBlockBuilder with(OffsetStore offsetStore) {
-            return new IdempotentBlockBuilder(this, offsetStore);
+        public IdempotentBlockBuilder<U,V> with(OffsetStore offsetStore) {
+            return new IdempotentBlockBuilder<>(this, offsetStore);
         }
 
         public Function<Flux<Flux<ConsumerRecord<U,V>>>, Publisher<ProcessingBlock<ConsumerRecord<U,V>>>> transformer() {

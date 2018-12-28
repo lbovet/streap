@@ -27,10 +27,10 @@ public class JdbcOffsetStore implements OffsetStore {
         }
     }
 
-    public JdbcOffsetStore(String tableName, String storeName, JdbcTemplate jdbcTemplate) {
+    public JdbcOffsetStore(JdbcTemplate jdbcTemplate, String tableName, String storeName) {
+        this.jdbcTemplate = jdbcTemplate;
         this.tableName = tableName;
         this.storeName = storeName;
-        this.jdbcTemplate = jdbcTemplate;
         try {
             jdbcTemplate.update("INSERT INTO "+tableName+" (off,store) VALUES (-1, ?)", storeName);
         } catch (DataIntegrityViolationException e) {

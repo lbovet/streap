@@ -1,5 +1,7 @@
 package io.streap.kafka;
 
+import io.streap.core.OffsetStore;
+import io.streap.spring.JdbcOffsetStore;
 import io.streap.spring.PlatformTransactionBlock;
 import io.streap.test.EmbeddedDatabaseSupport;
 import io.streap.test.EmbeddedKafkaSupport;
@@ -174,4 +176,49 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .map(l -> l.get("NAME"))
                 .count());
     }
+
+    @Test
+    public void testOnce() throws InterruptedException {
+        JdbcOffsetStore.createTable(jdbcTemplate, "offsets");
+        OffsetStore offsetStore = new JdbcOffsetStore(jdbcTemplate, "offsets", "test.once");
+        String nameTopic = "test.once.Name";
+
+        KafkaSender<Integer, String> confirmationSender = KafkaSender.create(senderOptions()
+                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn"));
+        TransactionManager transactionManager = confirmationSender.transactionManager();
+
+        List<String> results = new ArrayList<>();
+
+        // Main pipeline. Receive names, save them and send confirmations.
+        Flux<Boolean> receiver = KafkaReceiver
+                .create(receiverOptions(nameTopic))
+                .receiveExactlyOnce(transactionManager)
+                .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
+                        PlatformTransactionBlock.supplier(transactionTemplate)).with(offsetStore).transformer())
+                .concatMap(block -> block.items()
+                        .flatMap(block.wrapOnce( x -> results.add("once: "+x.value())))
+                        .flatMap(block.wrap( x -> results.add("twice: "+x.value())))
+                        .doOnComplete(block::commit)
+                        .doOnError(e -> {
+                            System.out.println(e.getMessage());
+                            block.abort();
+                        }));         
+
+        Thread.sleep(800);
+
+        // Send the names
+        KafkaSender.create(senderOptions())
+                .send(Flux.fromArray(names)
+                        .map(name -> SenderRecord.create(nameTopic, null, null, 1, name, 1)))
+                .then()
+                .doOnError(Throwable::printStackTrace)
+                .doOnSuccess(s -> System.out.println("Sent"))
+                .subscribe();
+
+        Thread.sleep(5000);
+
+        assertEquals(0, results.size());
+
+    }
+
 }
