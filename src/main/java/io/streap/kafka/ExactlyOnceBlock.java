@@ -2,17 +2,20 @@ package io.streap.kafka;
 
 import io.streap.core.*;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.kafka.receiver.ReceiverRecord;
 import reactor.kafka.sender.TransactionManager;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
  * A block for receiving and sending Kafka messages with exactly-one semantics.
  */
-public class ExactlyOnceBlock<T> extends BlockWrapper implements IdempotentBlock<T> {
+public class ExactlyOnceBlock<U, V> extends BlockDecorator implements IdempotentBlock<ReceiverRecord<U,V>> {
 
-    private static class ProcessingBlockBuilder {
+    private static class ProcessingBlockBuilder<T extends ReceiverRecord<U,V>,U,V> {
         Supplier<Block> innerBlockSupplier;
         TransactionManager transactionManager;
 
@@ -25,23 +28,23 @@ public class ExactlyOnceBlock<T> extends BlockWrapper implements IdempotentBlock
             return new IdempotentBlockBuilder(this, offsetStore);
         }
 
-        public <U> Function<Flux<Flux<U>>, Flux<? extends ProcessingBlock<U>>> transformer() {
-            return f -> f.map( items -> new ExactlyOnceBlock<>(transactionManager, innerBlockSupplier.get(), items));
+        public Function<Flux<Flux<ReceiverRecord<U,V>>>, Flux<? extends ProcessingBlock<ReceiverRecord<U,V>>>> transformer() {
+            return f -> f.map( items -> new ExactlyOnceBlock<U,V>(transactionManager, innerBlockSupplier.get(), items));
         }
     }
 
-    private static class IdempotentBlockBuilder {
-        ProcessingBlockBuilder blockBuilder;
+    private static class IdempotentBlockBuilder<T extends ReceiverRecord<U,V>,U,V> {
+        ProcessingBlockBuilder<T,U,V> blockBuilder;
         OffsetStore offsetStore;
 
-        public IdempotentBlockBuilder(ProcessingBlockBuilder blockBuilder, OffsetStore offsetStore) {
+        private IdempotentBlockBuilder(ProcessingBlockBuilder blockBuilder, OffsetStore offsetStore) {
             this.blockBuilder = blockBuilder;
             this.offsetStore = offsetStore;
         }
 
-        public <U> Function<Flux<Flux<U>>, Flux<? extends IdempotentBlock<U>>> transformer() {
+        public Function<Flux<Flux<ReceiverRecord<U,V>>>, Flux<? extends IdempotentBlock<ReceiverRecord<U,V>>>> transformer() {
             return f -> f.map( items -> {
-                ExactlyOnceBlock<U> block = new ExactlyOnceBlock<>(blockBuilder.transactionManager,
+                ExactlyOnceBlock<U,V> block = new ExactlyOnceBlock<U,V>(blockBuilder.transactionManager,
                         blockBuilder.innerBlockSupplier.get(), items);
                 block.setOffsetStore(offsetStore);
                 return block;
@@ -49,15 +52,16 @@ public class ExactlyOnceBlock<T> extends BlockWrapper implements IdempotentBlock
         }
     }
 
-    public static ProcessingBlockBuilder createBlock(TransactionManager transactionManager, Supplier<Block> innerBlockSupplier) {
-        return new ProcessingBlockBuilder(transactionManager, innerBlockSupplier);
+    public static <T extends ReceiverRecord<U,V>, U, V> ProcessingBlockBuilder<T,U,V> createBlock(TransactionManager transactionManager, Supplier<Block> innerBlockSupplier) {
+        return new ProcessingBlockBuilder<>(transactionManager, innerBlockSupplier);
     }
 
     private TransactionManager transactionManager;
-    private Flux<T> items;
+    private Flux<ReceiverRecord<U,V>> items;
     private OffsetStore offsetStore;
+    private Long lastOffset;
 
-    public ExactlyOnceBlock(TransactionManager transactionManager, Block innerBlock, Flux<T> items) {
+    public ExactlyOnceBlock(TransactionManager transactionManager, Block innerBlock, Flux<ReceiverRecord<U,V>> items) {
         super(innerBlock);
         this.transactionManager = transactionManager;
         this.items = items;
@@ -68,7 +72,7 @@ public class ExactlyOnceBlock<T> extends BlockWrapper implements IdempotentBlock
     }
 
     @Override
-    public Flux<T> items() {
+    public Flux<ReceiverRecord<U,V>> items() {
         return items;
     }
 
@@ -85,7 +89,20 @@ public class ExactlyOnceBlock<T> extends BlockWrapper implements IdempotentBlock
     }
 
     @Override
-    public <U> Function<T, Flux<U>> once(Function<T, U> fn) {
-        return null;
+    public Function<ReceiverRecord<U,V>, Mono<ReceiverRecord<U,V>>> wrapOnce(Consumer<ReceiverRecord<U,V>> operation) {
+        return t -> {
+            if (lastOffset == null) {
+                lastOffset = offsetStore.read();
+            }
+            if (t.offset() > lastOffset) {
+                return wrap((ReceiverRecord<U,V> x) -> {
+                    operation.accept(x);
+                    offsetStore.write(x.offset());
+                    return x;
+                }).apply(t);
+            } else {
+                return Mono.just(t);
+            }
+        };
     }
 }

@@ -41,11 +41,11 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
         jdbcTemplate.update("INSERT INTO PERSON(ID, NAME) VALUES (?, ?)", 1, "john");
 
         Block block = new PlatformTransactionBlock(transactionTemplate);
-        block.execute((x)->
+        block.wrap((x)->
                 jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary");
         assertEquals("john",
                 jdbcTemplate.queryForObject("SELECT NAME FROM PERSON WHERE ID = ?", String.class, 1));
-        block.execute((x)->
+        block.wrap((x)->
                 jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("peter");
 
         assertFalse(block.isAborted());
@@ -65,7 +65,7 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
         jdbcTemplate.update("INSERT INTO PERSON(ID, NAME) VALUES (?, ?)", 1, "john");
 
         Block block = new PlatformTransactionBlock(transactionTemplate);
-        block.execute((x)->
+        block.wrap((x)->
                 jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary");
         assertEquals("john",
                 jdbcTemplate.queryForObject("SELECT NAME FROM PERSON WHERE ID = ?", String.class, 1));

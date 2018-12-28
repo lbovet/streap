@@ -29,7 +29,7 @@ Process updates the local state
             .map(r -> r.value)
             .flatMap(b.once(storage::createOrder))
             .flatMap(order -> service.getArticleAvailabilities(order))
-                .flatMap(b.execute(a -> storage.setAvailability(order, a))
+                .flatMap(b.wrap(a -> storage.setAvailability(order, a))
                 .compose(sendAvailability)
                 .all(a -> a.qty >= 0)
                 .filter(Boolean.TRUE::equals)

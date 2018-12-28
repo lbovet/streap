@@ -31,17 +31,17 @@ public class SingleThreadBlockTest {
             result.add("after");
         }, Executors.newCachedThreadPool());
 
-        assertEquals("HELLO", block.execute((String x) -> {
+        assertEquals("HELLO", block.wrap((String x) -> {
             result.add(x);
             return x.toUpperCase();
         }).apply("hello").block());
 
-        assertEquals("FOO", block.execute((String x) -> {
+        assertEquals("FOO", block.wrap((String x) -> {
             result.add(x);
             return x.toUpperCase();
         }).apply("foo").block());
 
-        assertEquals("BAR", block.execute((String x) -> {
+        assertEquals("BAR", block.wrap((String x) -> {
             result.add(x);
             return x.toUpperCase();
         }).apply("bar").block());
@@ -92,7 +92,7 @@ public class SingleThreadBlockTest {
                 .delayElements(Duration.ofMillis(50))
                 .doOnNext(i -> {
                     System.out.println("Submitted task from " + Thread.currentThread().getName());
-                    executor.submit(() -> block.execute(fn).apply(i));
+                    executor.submit(() -> block.wrap(fn).apply(i));
                     expected.add(t + "." + i + ".in");
                     expected.add(t + "." + i + ".out");
                 })
@@ -108,7 +108,7 @@ public class SingleThreadBlockTest {
         block.start((r) -> r.run(), Executors.newCachedThreadPool());
 
         Assert.assertEquals("ouch",
-            block.execute((Void) -> {
+            block.wrap((Void) -> {
                 throw new IllegalStateException("ouch");
             }).apply(null)
                     .onErrorResume(e -> Mono.just(e.getCause().getMessage()))

@@ -1,7 +1,8 @@
 package io.streap.core;
 
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -9,11 +10,11 @@ import java.util.function.Function;
  */
 public interface IdempotentBlock<T> extends ProcessingBlock<T> {
     /**
-     * Runs an non-idempotent operation producing a side effect.
-     * This operation will not be execute again. E.g. when events are replayed after failure due to broker unavailability.
+     * Runs an non-idempotent operation producing a side effect inside the context of the block.
+     * This operation will not be wrap again. E.g. when events are replayed after failure due to broker unavailability.
      * <p>
-     * Use {@link Block#execute(Function)} for running idempotent operations.
-     * They will be execute again. E.g. when events are replayed after failure due to broker unavailability.
+     * Use {@link Block#wrap(Function)} for running idempotent operations.
+     * They will be wrap again. E.g. when events are replayed after failure due to broker unavailability.
      */
-    <U> Function<T, Flux<U>> once(Function<T, U> fn);
+    Function<T, Mono<T>> wrapOnce(Consumer<T> operation);
 }

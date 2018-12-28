@@ -11,7 +11,7 @@ public class OffsetStoreTest extends EmbeddedDatabaseSupport {
     public void testOffsets() {
         JdbcOffsetStore.createTable(jdbcTemplate, "offsets");
         JdbcOffsetStore store = new JdbcOffsetStore("offsets", "orders", jdbcTemplate);
-        assertEquals(0, store.read());
+        assertEquals(-1, store.read());
         store.write(3);
         assertEquals(3, store.read());
         store.write(2);

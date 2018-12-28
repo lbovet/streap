@@ -42,7 +42,7 @@ public class SingleThreadBlock implements Block {
     }
 
     @Override
-    public <T, U> Function<T, Mono<U>> execute(Function<T, U> fn) {
+    public <T, U> Function<T, Mono<U>> wrap(Function<T, U> fn) {
         return (T t) ->
                 Mono.fromFuture(
                         CompletableFuture.supplyAsync(

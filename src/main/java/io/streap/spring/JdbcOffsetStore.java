@@ -22,7 +22,7 @@ public class JdbcOffsetStore implements OffsetStore {
         try {
             jdbcTemplate.execute("CREATE TABLE " + tableName + " (store VARCHAR NOT NULL PRIMARY KEY, off BIGINT)");
         } catch (BadSqlGrammarException e) {
-            log.warn("Exception while creating table '{}'. Probably because it already exists. More details in debug level.", tableName);
+            log.warn("Could not create table '{}'. Probably because it already exists. More details with debug level.", tableName);
             log.debug("Exception while creating table", e);
         }
     }
@@ -32,7 +32,7 @@ public class JdbcOffsetStore implements OffsetStore {
         this.storeName = storeName;
         this.jdbcTemplate = jdbcTemplate;
         try {
-            jdbcTemplate.update("INSERT INTO "+tableName+" (off,store) VALUES (0, ?)", storeName);
+            jdbcTemplate.update("INSERT INTO "+tableName+" (off,store) VALUES (-1, ?)", storeName);
         } catch (DataIntegrityViolationException e) {
             log.debug("Store '{}' already exists in table '{}'", storeName, tableName);
             log.debug("Exception was", e);
