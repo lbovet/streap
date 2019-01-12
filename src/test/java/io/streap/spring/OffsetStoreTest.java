@@ -10,7 +10,7 @@ public class OffsetStoreTest extends EmbeddedDatabaseSupport {
     @Test
     public void testOffsets() {
         JdbcOffsetStore.createTable(jdbcTemplate, "offsets");
-        JdbcOffsetStore store = new JdbcOffsetStore("offsets", "orders", jdbcTemplate);
+        JdbcOffsetStore store = new JdbcOffsetStore(jdbcTemplate, "offsets", "orders");
         assertEquals(-1, store.read());
         store.write(3);
         assertEquals(3, store.read());
@@ -21,8 +21,8 @@ public class OffsetStoreTest extends EmbeddedDatabaseSupport {
     @Test
     public void testDoubleInsert() {
         JdbcOffsetStore.createTable(jdbcTemplate, "offsets");
-        new JdbcOffsetStore("offsets", "orders", jdbcTemplate);
-        new JdbcOffsetStore("offsets", "orders", jdbcTemplate);
+        new JdbcOffsetStore(jdbcTemplate, "offsets", "orders");
+        new JdbcOffsetStore(jdbcTemplate, "offsets", "orders");
     }
 
     @Test
