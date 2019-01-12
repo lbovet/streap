@@ -48,7 +48,7 @@ public class SingleThreadBlockTest {
 
         assertFalse(block.isAborted());
         assertFalse(block.isCompleted());
-        block.commit();
+        block.commit().block();
         assertFalse(block.isAborted());
         assertTrue(block.isCompleted());
 

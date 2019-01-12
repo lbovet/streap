@@ -17,12 +17,12 @@ public interface Block {
     /**
      * Commits the block if not yet committed.
      */
-    void commit();
+    <R> Mono<R> commit();
 
     /**
      * Aborts the transaction. Rollbacks if supported by the resource.
      */
-    void abort();
+    <R> Mono<R> abort();
 
     /**
      * If the block was aborted.

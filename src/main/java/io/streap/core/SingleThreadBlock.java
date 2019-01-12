@@ -2,10 +2,7 @@ package io.streap.core;
 
 import reactor.core.publisher.Mono;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -15,9 +12,11 @@ import java.util.function.Function;
  */
 public class SingleThreadBlock implements Block {
 
+    private static int POLL_TIMEOUT_SECONDS = 5;
     private BlockingQueue<Runnable> operations = new LinkedBlockingQueue<>();
     private volatile boolean running = true;
-    private boolean aborted;
+    private volatile CompletableFuture<Void> execution;
+    private volatile boolean aborted;
 
     /**
      * Starts block using a single thread taken from an executor service.
@@ -28,16 +27,20 @@ public class SingleThreadBlock implements Block {
      * @param executorService
      */
     public void start(Consumer<Runnable> perimeter, ExecutorService executorService) {
-        executorService.submit(() ->
-                perimeter.accept(() -> {
-                    while (running) {
-                        try {
-                            operations.take().run();
-                        } catch (InterruptedException e) {
-                            break;
-                        }
-                    }
-                })
+        execution = CompletableFuture.runAsync(() ->
+                        perimeter.accept(() -> {
+                            while (running && !isAborted()) {
+                                try {
+                                    Runnable task = operations.poll(POLL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                                    if(task!=null) {
+                                        task.run();
+                                    }
+                                } catch (InterruptedException e) {
+                                    break;
+                                }
+                            }
+                        }),
+                executorService
         );
     }
 
@@ -51,21 +54,22 @@ public class SingleThreadBlock implements Block {
                         ));
     }
 
-    private void terminate() {
+    private <R> Mono<R> terminate() {
         running = false;
         operations.add(() -> {
         });
+        return Mono.fromFuture(execution).map(x->null);
     }
 
     @Override
-    public void commit() {
-        terminate();
+    public <R> Mono<R> commit() {
+        return terminate();
     }
 
     @Override
-    public void abort() {
+    public <R> Mono<R> abort() {
         aborted = true;
-        terminate();
+        return terminate();
     }
 
     @Override
@@ -75,7 +79,7 @@ public class SingleThreadBlock implements Block {
 
     @Override
     public boolean isCompleted() {
-        return !running;
+        return execution.isDone();
     }
 
 

@@ -4,6 +4,7 @@ import io.streap.core.Block;
 import io.streap.core.SingleThreadBlock;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
+import reactor.core.publisher.Mono;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,7 +21,7 @@ public class PlatformTransactionBlock extends SingleThreadBlock {
 
     private static ExecutorService executorService = Executors.newCachedThreadPool();
 
-    private TransactionStatus transactionStatus;
+    private volatile TransactionStatus transactionStatus;
 
     public PlatformTransactionBlock(TransactionTemplate transactionTemplate) {
         this(transactionTemplate, executorService);
@@ -35,23 +36,23 @@ public class PlatformTransactionBlock extends SingleThreadBlock {
     }
 
     @Override
-    public void commit() {
-        super.commit();
+    public <R> Mono<R> commit() {
+        return super.commit();
     }
 
     @Override
     public boolean isAborted() {
-        return transactionStatus.isRollbackOnly();
+        return transactionStatus != null && transactionStatus.isRollbackOnly();
     }
 
     @Override
     public boolean isCompleted() {
-        return transactionStatus.isCompleted();
+        return transactionStatus != null && transactionStatus.isCompleted();
     }
 
     @Override
-    public void abort() {
+    public <R> Mono<R> abort() {
         transactionStatus.setRollbackOnly();
-        super.abort();
+        return super.abort();
     }
 }

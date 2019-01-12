@@ -42,17 +42,15 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
 
         Block block = new PlatformTransactionBlock(transactionTemplate);
         block.wrap((x)->
-                jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary");
+                jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary").block();
         assertEquals("john",
                 jdbcTemplate.queryForObject("SELECT NAME FROM PERSON WHERE ID = ?", String.class, 1));
         block.wrap((x)->
-                jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("peter");
+                jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("peter").block();
 
-        Thread.sleep(500);
         assertFalse(block.isAborted());
         assertFalse(block.isCompleted());
-        block.commit();
-        Thread.sleep(500);
+        block.commit().block();
         assertFalse(block.isAborted());
         assertTrue(block.isCompleted());
 
@@ -67,14 +65,13 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
 
         Block block = new PlatformTransactionBlock(transactionTemplate);
         block.wrap((x)->
-                jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary");
+                jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary").block();
         assertEquals("john",
                 jdbcTemplate.queryForObject("SELECT NAME FROM PERSON WHERE ID = ?", String.class, 1));
 
         assertFalse(block.isAborted());
         assertFalse(block.isCompleted());
-        block.abort();
-        Thread.sleep(500);
+        block.abort().block();
         assertTrue(block.isAborted());
         assertTrue(block.isCompleted());
 

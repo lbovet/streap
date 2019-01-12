@@ -21,13 +21,13 @@ public class BlockDecorator implements Block {
     }
 
     @Override
-    public void commit() {
-        nestedBlock.commit();
+    public <R> Mono<R> commit() {
+        return nestedBlock.commit();
     }
 
     @Override
-    public void abort() {
-        nestedBlock.abort();
+    public <R> Mono<R> abort() {
+        return nestedBlock.abort();
     }
 
     @Override
