@@ -32,7 +32,7 @@ public class SingleThreadBlock implements Block {
                             while (running && !isAborted()) {
                                 try {
                                     Runnable task = operations.poll(POLL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                                    if(task!=null) {
+                                    if (task != null) {
                                         task.run();
                                     }
                                 } catch (InterruptedException e) {
@@ -55,10 +55,12 @@ public class SingleThreadBlock implements Block {
     }
 
     private <R> Mono<R> terminate() {
-        running = false;
-        operations.add(() -> {
-        });
-        return Mono.fromFuture(execution).map(x->null);
+        return Mono
+                .just(false)
+                .doOnNext(x -> running = x)
+                .doOnNext(x -> operations.add(() -> {
+                }))
+                .then(Mono.fromFuture(execution).map(x -> null));
     }
 
     @Override
@@ -68,8 +70,10 @@ public class SingleThreadBlock implements Block {
 
     @Override
     public <R> Mono<R> abort() {
-        aborted = true;
-        return terminate();
+        return Mono
+                .just(true)
+                .doOnNext(x -> aborted = x)
+                .then(terminate());
     }
 
     @Override

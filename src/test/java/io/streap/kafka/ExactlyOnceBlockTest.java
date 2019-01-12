@@ -11,6 +11,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
@@ -72,8 +73,8 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .flatMap(block.wrap(saveName))
                         .map(name -> SenderRecord.create(confirmationTopic, null, null, 1, name, 1))
                         .compose(confirmationSender::send)
-                        .doOnComplete(block::commit)
-                        .doOnError(e -> block.abort()))
+                        .then(block.commit())
+                        .onErrorResume(e -> block.abort()))
                 .subscribe();
 
         // Receive Confirmations
@@ -137,10 +138,10 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .flatMap(block.wrap(saveName))
                         .map(name -> SenderRecord.create(confirmationTopic, null, null, 1, name, 1))
                         .compose(confirmationSender::send)
-                        .doOnComplete(block::commit)
-                        .doOnError(e -> {
+                        .then(block.commit())
+                        .onErrorResume(e -> {
                             System.out.println(e.getMessage());
-                            block.abort();
+                            return block.abort();
                         }))
                 .subscribe();
 
@@ -166,7 +167,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        Thread.sleep(5000);
+        Thread.sleep(2000);
 
         assertEquals(0, results.size());
 
@@ -190,7 +191,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         List<String> results = new ArrayList<>();
 
         // Main pipeline. Receive names, save them and send confirmations.
-        Flux<Boolean> receiver = KafkaReceiver
+        Flux<?> receiver = KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
@@ -198,11 +199,11 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .concatMap(block -> block.items()
                         .flatMap(block.wrapOnce( x -> results.add("once: "+x.value())))
                         .flatMap(block.wrap( x -> results.add("twice: "+x.value())))
-                        .doOnComplete(block::commit)
-                        .doOnError(e -> {
+                        .then(block.commit())
+                        .onErrorResume(e -> {
                             System.out.println(e.getMessage());
-                            block.abort();
-                        }));         
+                            return block.abort();
+                        }));
 
         Thread.sleep(800);
 
@@ -215,7 +216,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        Thread.sleep(5000);
+        Thread.sleep(2000);
 
         assertEquals(0, results.size());
 
