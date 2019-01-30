@@ -52,7 +52,6 @@ public class PlatformTransactionBlock extends SingleThreadBlock {
 
     @Override
     public <R> Mono<R> abort() {
-        transactionStatus.setRollbackOnly();
-        return super.abort();
+        return Mono.empty().doOnSuccess(x -> transactionStatus.setRollbackOnly()).then(super.abort());
     }
 }

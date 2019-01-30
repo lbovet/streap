@@ -8,7 +8,7 @@ public interface OffsetStore {
     /**
      * Note: This never overwrites a higher value.
      */
-    void write(long offset);
+    void write(int partition, long offset);
 
-    long read();
+    long read(int partition);
 }

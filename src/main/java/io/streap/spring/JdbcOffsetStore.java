@@ -4,6 +4,8 @@ import io.streap.core.OffsetStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -20,7 +22,8 @@ public class JdbcOffsetStore implements OffsetStore {
 
     public static void createTable(JdbcTemplate jdbcTemplate, String tableName) {
         try {
-            jdbcTemplate.execute("CREATE TABLE " + tableName + " (store VARCHAR NOT NULL PRIMARY KEY, off BIGINT)");
+            jdbcTemplate.execute("CREATE TABLE " + tableName + " (store VARCHAR NOT NULL, partition INTEGER NOT NULL, off BIGINT NOT NULL, " +
+                    "CONSTRAINT PK PRIMARY KEY (store, partition))");
         } catch (BadSqlGrammarException e) {
             log.warn("Could not create table '{}'. Probably because it already exists. More details with debug level.", tableName);
             log.debug("Exception while creating table", e);
@@ -31,26 +34,33 @@ public class JdbcOffsetStore implements OffsetStore {
         this.jdbcTemplate = jdbcTemplate;
         this.tableName = tableName;
         this.storeName = storeName;
-        try {
-            jdbcTemplate.update("INSERT INTO "+tableName+" (off,store) VALUES (-1, ?)", storeName);
-        } catch (DataIntegrityViolationException e) {
-            log.debug("Store '{}' already exists in table '{}'", storeName, tableName);
-            log.debug("Exception was", e);
+    }
+
+    @Override
+    public void write(int partition, long offset) {
+        int updated = jdbcTemplate.update("UPDATE " + tableName + " SET off = ? WHERE store = ? AND partition = ? AND off < ?",
+                offset,
+                storeName,
+                partition,
+                offset);
+        if (updated == 0) {
+            try {
+                jdbcTemplate.update("INSERT INTO " + tableName + " (off,partition,store) VALUES (?, ?, ?)", offset, partition, storeName);
+            } catch (DuplicateKeyException e) {
+                // already exists, ignore
+            }
         }
     }
 
     @Override
-    public void write(long offset) {
-        jdbcTemplate.update("UPDATE "+tableName+" SET off = ? WHERE store = ?  AND off < ?",
-                offset,
-                storeName,
-                offset);
-    }
-
-    @Override
-    public long read() {
-        return jdbcTemplate.queryForObject("SELECT off FROM "+tableName+" WHERE store = ?",
-                Long.class,
-                storeName);
+    public long read(int partition) {
+        try {
+            return jdbcTemplate.queryForObject("SELECT off FROM " + tableName + " WHERE store = ? AND partition = ?",
+                    Long.class,
+                    storeName,
+                    partition);
+        } catch (EmptyResultDataAccessException e) {
+            return -1;
+        }
     }
 }

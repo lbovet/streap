@@ -7,12 +7,7 @@ import java.util.function.Function;
 /**
  * Delimits a unit of work.
  */
-public interface Block {
-
-    /**
-     * Wraps a function so that it runs in the context of the block.
-     */
-    <U,V> Function<U,Mono<V>> wrap(Function<U,V> fn);
+public interface Block extends Context {
 
     /**
      * Commits the block if not yet committed.

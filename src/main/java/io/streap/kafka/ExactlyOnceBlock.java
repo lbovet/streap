@@ -79,29 +79,42 @@ public class ExactlyOnceBlock<U, V> extends BlockDecorator implements Idempotent
 
     @Override
     public <R> Mono<R> commit() {
-        return super.commit().then(transactionManager.commit());
+        return super.commit().then(transactionManager.commit()).map(x->null);
     }
 
     @Override
     public <R> Mono<R> abort() {
-        return super.abort().then(transactionManager.abort());
+        return super.abort().then(transactionManager.abort()).map(x->null);
     }
 
     @Override
     public Function<ConsumerRecord<U,V>, Mono<ConsumerRecord<U,V>>> wrapOnce(Consumer<ConsumerRecord<U,V>> operation) {
         return t -> {
             if (lastOffset == null) {
-                lastOffset = offsetStore.read();
+                lastOffset = offsetStore.read(t.partition());
             }
             if (t.offset() > lastOffset) {
                 return wrap((ConsumerRecord<U,V> x) -> {
                     operation.accept(x);
-                    offsetStore.write(x.offset());
+                    offsetStore.write(t.partition(), x.offset());
                     return x;
                 }).apply(t);
             } else {
                 return Mono.just(t);
             }
+        };
+    }
+
+    @Override
+    public Function<ConsumerRecord<U,V>, Mono<ConsumerRecord<U,V>>> doOnce(Consumer<ConsumerRecord<U,V>> operation) {
+        return t -> {
+            if (lastOffset == null) {
+                lastOffset = offsetStore.read(t.partition());
+            }
+            if (t.offset() > lastOffset) {
+                operation.accept(t);
+            }
+            return Mono.just(t);
         };
     }
 }

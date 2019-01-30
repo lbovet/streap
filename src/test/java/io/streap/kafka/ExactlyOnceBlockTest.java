@@ -5,11 +5,13 @@ import io.streap.spring.JdbcOffsetStore;
 import io.streap.spring.PlatformTransactionBlock;
 import io.streap.test.EmbeddedDatabaseSupport;
 import io.streap.test.EmbeddedKafkaSupport;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
@@ -41,7 +43,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         jdbcTemplate.execute("CREATE TABLE PERSON (NAME VARCHAR)");
     }
 
-    private String[] names = { "john", "paul", "mary", "peter", "luke" };
+    private String[] names = {"john", "paul", "mary", "peter", "luke"};
 
     @Test
     public void testCommit() throws InterruptedException {
@@ -49,14 +51,14 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         String nameTopic = "test.commit.Name";
         String confirmationTopic = "test.commit.Confirmation";
 
-        Function<String,String> saveName = (name) -> {
+        Function<String, String> saveName = (name) -> {
             jdbcTemplate.update("INSERT INTO PERSON(NAME) VALUES (?)", name);
-            System.out.println("Wrote "+name);
+            System.out.println("Wrote " + name);
             return name;
         };
 
         KafkaSender<Integer, String> confirmationSender = KafkaSender.create(senderOptions()
-                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn"));
+                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn-commit"));
         TransactionManager transactionManager = confirmationSender.transactionManager();
 
         CountDownLatch latch = new CountDownLatch(names.length);
@@ -65,7 +67,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
-                .doOnNext(b-> System.out.println("Got batch"))
+                .doOnNext(b -> System.out.println("Got batch"))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransactionBlock.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
@@ -113,24 +115,26 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         String nameTopic = "test.abort.Name";
         String confirmationTopic = "test.abort.Confirmation";
 
-        Function<String,String> saveName = (name) -> {
+        Function<String, String> saveName = (name) -> {
             jdbcTemplate.update("INSERT INTO PERSON(NAME) VALUES (?)", name);
-            System.out.println("Wrote "+name);
-            if(name.equals("paul")) {
+            System.out.println("Wrote " + name);
+            if (name.equals("paul")) {
                 throw new RuntimeException("I don't like him");
             }
             return name;
         };
 
         KafkaSender<Integer, String> confirmationSender = KafkaSender.create(senderOptions()
-                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn"));
+                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn-abort"));
         TransactionManager transactionManager = confirmationSender.transactionManager();
 
         // Main pipeline. Receive names, save them and send confirmations.
         KafkaReceiver
-                .create(receiverOptions(nameTopic))
+                .create(receiverOptions(nameTopic)
+                        .consumerProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+                        .consumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2))
                 .receiveExactlyOnce(transactionManager)
-                .doOnNext(b -> System.out.println("Got batch"+ b))
+                .doOnNext(b -> System.out.println("Got batch" + b))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransactionBlock.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
@@ -185,25 +189,40 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         String nameTopic = "test.once.Name";
 
         KafkaSender<Integer, String> confirmationSender = KafkaSender.create(senderOptions()
-                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn"));
+                .producerProperty(TRANSACTIONAL_ID_CONFIG, "txn-once"));
         TransactionManager transactionManager = confirmationSender.transactionManager();
 
         List<String> results = new ArrayList<>();
 
-        // Main pipeline. Receive names, save them and send confirmations.
-        Flux<?> receiver = KafkaReceiver
+        // Main pipeline. Receive names, save them.
+        KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransactionBlock.supplier(transactionTemplate)).with(offsetStore).transformer())
+                .doOnNext(x -> System.out.println(x))
                 .concatMap(block -> block.items()
-                        .flatMap(block.wrapOnce( x -> results.add("once: "+x.value())))
-                        .flatMap(block.wrap( x -> results.add("twice: "+x.value())))
-                        .then(block.commit())
+                        .flatMap(block.wrapOnce(x -> results.add("once: " + x.value())))
+                        .flatMap(block.wrap(x -> {
+                            results.add("twice: " + x.value());
+                            return x;
+                        }))
+                        .last() /*
+                        .flatMap( x -> {
+                            if(results.size() < 15) {
+                                System.out.println("ABORT");
+                                return block.abort();
+                            } else {
+                                System.out.println("COMMIT");
+                                return block.commit();
+                            }
+                        })*/
+                        .then(block.abort())
                         .onErrorResume(e -> {
-                            System.out.println(e.getMessage());
-                            return block.abort();
-                        }));
+                            e.printStackTrace(System.err);
+                            return Mono.just("ok");
+                        })
+                ).subscribe();
 
         Thread.sleep(800);
 
@@ -216,10 +235,9 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        Thread.sleep(2000);
+                        Thread.sleep(2000);
 
-        assertEquals(0, results.size());
-
+        assertEquals(15, results.size());
     }
 
 }
