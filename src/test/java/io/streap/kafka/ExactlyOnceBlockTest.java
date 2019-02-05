@@ -9,6 +9,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 import reactor.core.Disposable;
@@ -183,6 +184,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
     }
 
     @Test
+    @Ignore
     public void testOnce() throws InterruptedException {
         JdbcOffsetStore.createTable(jdbcTemplate, "offsets");
         OffsetStore offsetStore = new JdbcOffsetStore(jdbcTemplate, "offsets", "test.once");
