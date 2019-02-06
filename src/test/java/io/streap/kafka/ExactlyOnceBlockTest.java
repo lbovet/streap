@@ -12,7 +12,6 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
@@ -133,7 +132,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(nameTopic)
                         .consumerProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-                        .consumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2))
+                        .consumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 5))
                 .receiveExactlyOnce(transactionManager)
                 .doOnNext(b -> System.out.println("Got batch" + b))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
