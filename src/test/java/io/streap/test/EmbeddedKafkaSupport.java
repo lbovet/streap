@@ -26,6 +26,10 @@ public class EmbeddedKafkaSupport {
                     .brokerProperty(KafkaConfig.TransactionsTopicReplicationFactorProp(), "1")
                     .brokerProperty(KafkaConfig.TransactionsTopicMinISRProp(), "1");
         }
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+        }
         return kafka;
     }
 
