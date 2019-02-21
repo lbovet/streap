@@ -4,6 +4,7 @@ import io.streap.test.EmbeddedKafkaSupport;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
@@ -14,9 +15,12 @@ import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
@@ -98,19 +102,24 @@ public class ReactorKafkaTest {
                 .receiveExactlyOnce(sender.transactionManager())
                 .doOnNext(m -> System.out.println("Received batch:" + m))
                 .concatMap(f -> f
-                    .doOnNext(i -> System.out.println("Received item:" + i.value()))
-                    .doOnNext(i -> {
-                        if (shouldStop.getAndSet(false)) {
-                            throw new RuntimeException("Aborted when item 1 is first seen");
-                        }
-                    })
-                    .doOnNext(i -> result.append(i.value()))
-                    .doOnNext(i -> latch.countDown())
-                    .onErrorResume(e ->
-                        receiver.doOnConsumer( consumer -> consumer.assignment()
-                                .forEach(tp -> consumer.seek(tp, consumer.committed(tp).offset())))
-                                .then(sender.transactionManager().abort())
-                        ))
+                        .doOnNext(i -> System.out.println("Received item:" + i.value()))
+                        .doOnNext(i -> {
+                            if (shouldStop.getAndSet(false)) {
+                                throw new RuntimeException("Aborted when item 1 is first seen");
+                            }
+                        })
+                        .doOnNext(i -> result.append(i.value()))
+                        .doOnNext(i -> latch.countDown())
+                        .onErrorResume(e ->
+                                receiver.doOnConsumer(consumer -> consumer.assignment().stream()
+                                        .peek(tp -> {
+                                            if(consumer.committed(tp) != null) {
+                                                consumer.seek(tp, consumer.committed(tp).offset());
+                                            } else {
+                                                consumer.seekToBeginning(Collections.singleton(tp));
+                                            }
+                                        }).count())
+                                        .then(sender.transactionManager().abort())))
                 .subscribe();
 
         Thread.sleep(500);
@@ -123,7 +132,7 @@ public class ReactorKafkaTest {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        latch.await(7, TimeUnit.SECONDS);
+        latch.await(60, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
         assertEquals("hello-0hello-1hello-2", result.toString());
     }

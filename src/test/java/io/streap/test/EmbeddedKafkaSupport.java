@@ -27,7 +27,7 @@ public class EmbeddedKafkaSupport {
                     .brokerProperty(KafkaConfig.TransactionsTopicMinISRProp(), "1");
         }
         try {
-            Thread.sleep(500);
+            Thread.sleep(800);
         } catch (InterruptedException e) {
         }
         return kafka;
