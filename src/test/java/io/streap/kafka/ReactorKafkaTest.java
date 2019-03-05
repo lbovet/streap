@@ -15,6 +15,7 @@ import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
@@ -100,11 +101,13 @@ public class ReactorKafkaTest {
         KafkaReceiver<Integer, String> receiver = KafkaReceiver.create(receiverOptions("consume.again.In"));
         receiver
                 .receiveExactlyOnce(sender.transactionManager())
-                .doOnNext(m -> System.out.println("Received batch:" + m))
+                .doOnNext(m -> System.out.println("Received batch"))
                 .concatMap(f -> f
+                        .cache(0)
                         .doOnNext(i -> System.out.println("Received item:" + i.value()))
                         .doOnNext(i -> {
                             if (shouldStop.getAndSet(false)) {
+                                System.out.println("aborting");
                                 throw new RuntimeException("Aborted when item 1 is first seen");
                             }
                         })
@@ -113,19 +116,22 @@ public class ReactorKafkaTest {
                         .onErrorResume(e ->
                                 receiver.doOnConsumer(consumer -> consumer.assignment().stream()
                                         .peek(tp -> {
-                                            if(consumer.committed(tp) != null) {
+                                            if (consumer.committed(tp) != null) {
+                                                System.out.println("reset to " + consumer.committed(tp).offset());
                                                 consumer.seek(tp, consumer.committed(tp).offset());
                                             } else {
+                                                System.out.println("reset to beginning");
                                                 consumer.seekToBeginning(Collections.singleton(tp));
                                             }
                                         }).count())
-                                        .then(sender.transactionManager().abort())))
+                                        .then(sender.transactionManager().abort())
+                        ))
                 .subscribe();
 
-        Thread.sleep(500);
+        Thread.sleep(800);
 
         KafkaSender.create(senderOptions())
-                .send(Flux.range(0, 2)
+                .send(Flux.range(0, 3)
                         .map(x -> SenderRecord.create("consume.again.In", null, null, 1, "hello-" + x, 1)))
                 .then()
                 .doOnError(Throwable::printStackTrace)
