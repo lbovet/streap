@@ -102,7 +102,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        latch.await(5, TimeUnit.SECONDS);
+        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
 
         assertEquals(Arrays.asList(names), jdbcTemplate
@@ -117,6 +117,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
 
         String nameTopic = "test.abort.Name";
         String confirmationTopic = "test.abort.Confirmation";
+        CountDownLatch latch = new CountDownLatch(1);
 
         Function<String, String> saveName = (name) -> {
             jdbcTemplate.update("INSERT INTO PERSON(NAME) VALUES (?)", name);
@@ -133,9 +134,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
 
         // Main pipeline. Receive names, save them and send confirmations.
         KafkaReceiver
-                .create(receiverOptions(nameTopic)
-                        .consumerProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-                        .consumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 5))
+                .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
                 .doOnNext(b -> System.out.println("Got batch" + b))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
@@ -187,8 +186,8 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .count());
     }
 
-    @Test
     @Ignore
+    @Test
     public void testOnce() throws InterruptedException {
         JdbcOffsetStore.createTable(jdbcTemplate, "offsets");
         OffsetStore offsetStore = new JdbcOffsetStore(jdbcTemplate, "offsets", "test.once");
@@ -206,24 +205,23 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .receiveExactlyOnce(transactionManager)
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransactionBlock.supplier(transactionTemplate)).with(offsetStore).transformer())
-                .doOnNext(x -> System.out.println(x))
+                .doOnNext(System.out::println)
                 .concatMap(block -> block.items()
                         .flatMap(block.wrapOnce(x -> results.add("once: " + x.value())))
                         .flatMap(block.wrap(x -> {
                             results.add("twice: " + x.value());
                             return x;
                         }))
-                        .last() /*
-                        .flatMap( x -> {
-                            if(results.size() < 15) {
+                        .last()
+                        .flatMap(x -> {
+                            if (results.size() < 15) {
                                 System.out.println("ABORT");
                                 return block.abort();
                             } else {
                                 System.out.println("COMMIT");
                                 return block.commit();
                             }
-                        })*/
-                        .then(block.abort())
+                        })
                         .onErrorResume(e -> {
                             e.printStackTrace(System.err);
                             return Mono.just("ok");
@@ -241,7 +239,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-                        Thread.sleep(2000);
+        Thread.sleep(5000);
 
         assertEquals(15, results.size());
     }
