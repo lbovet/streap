@@ -5,6 +5,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
@@ -19,12 +20,14 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
+import static io.streap.test.EmbeddedKafkaSupport.waitForAssignment;
 import static org.junit.Assert.assertEquals;
 
 
@@ -45,7 +48,7 @@ public class ReactorKafkaTest {
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
-        Thread.sleep(500);
+        waitForAssignment();
 
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("at.least.once.In", null, null, 1, "hello", 1)))
@@ -54,8 +57,7 @@ public class ReactorKafkaTest {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-
-        latch.await(5, TimeUnit.SECONDS);
+        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
     }
 
@@ -76,7 +78,7 @@ public class ReactorKafkaTest {
                 .onErrorResume(e -> sender.transactionManager().abort().then(Mono.error(e)))
                 .subscribe();
 
-        Thread.sleep(500);
+        waitForAssignment();
 
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("exactly.once.In", null, null, 1, "hello", 1)))
@@ -85,13 +87,13 @@ public class ReactorKafkaTest {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        latch.await(7, TimeUnit.SECONDS);
+        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
     }
 
     @Test
     public void testConsumeAgain() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(2);
+        CountDownLatch latch = new CountDownLatch(3);
         AtomicBoolean shouldStop = new AtomicBoolean(true);
         StringBuffer result = new StringBuffer();
 
@@ -103,7 +105,7 @@ public class ReactorKafkaTest {
                 .receiveExactlyOnce(sender.transactionManager())
                 .doOnNext(m -> System.out.println("Received batch"))
                 .concatMap(f -> f
-                        .cache(0)
+                        .publish().autoConnect()
                         .doOnNext(i -> System.out.println("Received item:" + i.value()))
                         .doOnNext(i -> {
                             if (shouldStop.getAndSet(false)) {
@@ -112,6 +114,7 @@ public class ReactorKafkaTest {
                             }
                         })
                         .doOnNext(i -> result.append(i.value()))
+                        .doOnNext(i -> System.out.println("result:" + result.toString()))
                         .doOnNext(i -> latch.countDown())
                         .onErrorResume(e ->
                                 receiver.doOnConsumer(consumer -> consumer.assignment().stream()
@@ -128,7 +131,7 @@ public class ReactorKafkaTest {
                         ))
                 .subscribe();
 
-        Thread.sleep(800);
+        EmbeddedKafkaSupport.waitForAssignment();
 
         KafkaSender.create(senderOptions())
                 .send(Flux.range(0, 3)
@@ -138,7 +141,7 @@ public class ReactorKafkaTest {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        latch.await(60, TimeUnit.SECONDS);
+        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
         assertEquals("hello-0hello-1hello-2", result.toString());
     }

@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
+import static io.streap.test.EmbeddedKafkaSupport.waitForAssignment;
 import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 import static org.junit.Assert.assertEquals;
 
@@ -79,6 +80,8 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .onErrorResume(e -> block.abort()))
                 .subscribe();
 
+        waitForAssignment();
+
         // Receive Confirmations
         KafkaReceiver
                 .create(receiverOptions(confirmationTopic))
@@ -88,7 +91,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
-        Thread.sleep(800);
+        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())
@@ -149,6 +152,8 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         }))
                 .subscribe();
 
+        waitForAssignment();
+
         List<String> results = new ArrayList<>();
 
         // Receive Confirmations
@@ -160,7 +165,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
-        Thread.sleep(800);
+        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())
@@ -225,7 +230,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         })
                 ).subscribe();
 
-        Thread.sleep(800);
+        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())

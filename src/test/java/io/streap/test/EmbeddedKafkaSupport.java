@@ -14,11 +14,16 @@ import reactor.kafka.sender.SenderOptions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertTrue;
 
 public class EmbeddedKafkaSupport {
 
     private static KafkaEmbedded kafka;
     private static int count = 0;
+    private static Semaphore readySemaphore = new Semaphore(0);
 
     public static KafkaEmbedded init() {
         if(kafka == null) {
@@ -51,6 +56,16 @@ public class EmbeddedKafkaSupport {
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class);
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        return ReceiverOptions.<Integer,String>create(consumerProps).subscription(Collections.singleton(topic));
+        return ReceiverOptions.<Integer,String>create(consumerProps)
+                .subscription(Collections.singleton(topic))
+                .addAssignListener(partitions -> readySemaphore.release());
+    }
+
+    public static void waitForAssignment() {
+        try {
+            assertTrue("Partitions not assigned", readySemaphore.tryAcquire(1000, TimeUnit.MILLISECONDS));
+            readySemaphore = new Semaphore(0);
+        } catch (InterruptedException e) {
+        }
     }
 }
