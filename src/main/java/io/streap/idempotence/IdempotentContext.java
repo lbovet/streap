@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.streap.core;
+package io.streap.idempotence;
 
+import io.streap.context.Context;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
@@ -23,7 +24,8 @@ import java.util.function.Function;
 /**
  * Context providing idempotence by skipping non-idempotent operations.
  */
-public interface IdempotentContext<T> extends Context {
+public interface IdempotentContext<T> extends Context, IdempotentSupport<T> {
+
     /**
      * Wraps an non-idempotent operation producing a side effect inside this context.
      * This operation will not be run again. E.g. when events are replayed after failure due to broker unavailability.
@@ -32,10 +34,4 @@ public interface IdempotentContext<T> extends Context {
      * They will be run again. E.g. when events are replayed after failure due to broker unavailability.
      */
     Function<T, Mono<T>> wrapOnce(Consumer<T> operation);
-
-    /**
-     * Wraps an non-idempotent operation producing a side effect outside of this context.
-     * This operation will not be run again. E.g. when events are replayed after failure due to broker unavailability.
-     */
-    Function<T, Mono<T>> doOnce(Consumer<T> operation);
 }

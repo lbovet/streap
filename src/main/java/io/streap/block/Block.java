@@ -1,8 +1,7 @@
-package io.streap.core;
+package io.streap.block;
 
+import io.streap.context.Context;
 import reactor.core.publisher.Mono;
-
-import java.util.function.Function;
 
 /**
  * Delimits a unit of work.

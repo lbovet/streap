@@ -1,4 +1,4 @@
-package io.streap.core;
+package io.streap.block;
 
 import reactor.core.publisher.Mono;
 

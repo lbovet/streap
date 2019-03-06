@@ -1,9 +1,6 @@
-package io.streap.core;
+package io.streap.idempotence;
 
-import reactor.core.publisher.Mono;
-
-import java.util.function.Consumer;
-import java.util.function.Function;
+import io.streap.block.ProcessingBlock;
 
 /**
  * Block providing idempotence by skipping non-idempotent operations.

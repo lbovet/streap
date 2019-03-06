@@ -1,4 +1,4 @@
-package io.streap.core;
+package io.streap.idempotence;
 
 /**
  * Stores offsets for idempotent processing.

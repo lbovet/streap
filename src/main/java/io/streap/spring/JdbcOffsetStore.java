@@ -1,9 +1,8 @@
 package io.streap.spring;
 
-import io.streap.core.OffsetStore;
+import io.streap.idempotence.OffsetStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.BadSqlGrammarException;

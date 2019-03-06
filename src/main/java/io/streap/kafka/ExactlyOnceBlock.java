@@ -1,6 +1,8 @@
 package io.streap.kafka;
 
-import io.streap.core.*;
+import io.streap.block.*;
+import io.streap.idempotence.IdempotentBlock;
+import io.streap.idempotence.OffsetStore;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;

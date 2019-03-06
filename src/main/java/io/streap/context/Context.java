@@ -13,18 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.streap.core;
+package io.streap.context;
 
 import reactor.core.publisher.Mono;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * Provides a context for executing operations.
  */
 public interface Context {
+
     /**
-     * Wraps a function so that it runs in this context.
+     * Wraps a function so that it runs in this context when called.
      */
     <U,V> Function<U,Mono<V>> wrap(Function<U,V> fn);
 }

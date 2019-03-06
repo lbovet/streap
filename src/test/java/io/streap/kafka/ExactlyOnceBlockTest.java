@@ -1,11 +1,10 @@
 package io.streap.kafka;
 
-import io.streap.core.OffsetStore;
+import io.streap.idempotence.OffsetStore;
 import io.streap.spring.JdbcOffsetStore;
 import io.streap.spring.PlatformTransactionBlock;
 import io.streap.test.EmbeddedDatabaseSupport;
 import io.streap.test.EmbeddedKafkaSupport;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.ClassRule;

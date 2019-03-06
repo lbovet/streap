@@ -1,6 +1,6 @@
 package io.streap;
 
-import io.streap.core.SingleThreadBlock;
+import io.streap.block.SingleThreadBlock;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
