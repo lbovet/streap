@@ -40,7 +40,7 @@ public class ExactlyOnceBlock<U, V> extends BlockDecorator implements Idempotent
         private ProcessingBlockBuilder<U,V> blockBuilder;
         private OffsetStore offsetStore;
 
-        private IdempotentBlockBuilder(ProcessingBlockBuilder blockBuilder, OffsetStore offsetStore) {
+        private IdempotentBlockBuilder(ProcessingBlockBuilder<U,V> blockBuilder, OffsetStore offsetStore) {
             this.blockBuilder = blockBuilder;
             this.offsetStore = offsetStore;
         }
