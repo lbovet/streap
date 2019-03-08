@@ -117,21 +117,25 @@ public class ReactorKafkaTest {
                         .doOnNext(i -> System.out.println("result:" + result.toString()))
                         .doOnNext(i -> latch.countDown())
                         .onErrorResume(e ->
-                                receiver.doOnConsumer(consumer -> consumer.assignment().stream()
-                                        .peek(tp -> {
-                                            if (consumer.committed(tp) != null) {
-                                                System.out.println("reset to " + consumer.committed(tp).offset());
-                                                consumer.seek(tp, consumer.committed(tp).offset());
-                                            } else {
-                                                System.out.println("reset to beginning");
-                                                consumer.seekToBeginning(Collections.singleton(tp));
-                                            }
-                                        }).count())
+                                receiver.doOnConsumer(consumer -> {
+                                    consumer.assignment().forEach((tp) -> {
+                                        if (consumer.committed(tp) != null) {
+                                            System.out.println("reset to " + consumer.committed(tp).offset());
+                                            consumer.seek(tp, consumer.committed(tp).offset());
+                                        } else {
+                                            System.out.println("reset to beginning");
+                                            consumer.seekToBeginning(Collections.singleton(tp));
+                                        }
+                                    });
+                                    return null;
+                                })
                                         .then(sender.transactionManager().abort())
                         ))
                 .subscribe();
 
         EmbeddedKafkaSupport.waitForAssignment();
+
+        Thread.sleep(800);
 
         KafkaSender.create(senderOptions())
                 .send(Flux.range(0, 3)
@@ -141,7 +145,7 @@ public class ReactorKafkaTest {
                 .doOnSuccess(s -> System.out.println("Sent"))
                 .subscribe();
 
-        latch.await(10, TimeUnit.SECONDS);
+        latch.await(20, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
         assertEquals("hello-0hello-1hello-2", result.toString());
     }
