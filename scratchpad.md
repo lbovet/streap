@@ -22,16 +22,49 @@ begin
 
 ----
 
+===> Interfaces: Mono -> Publisher ??
 
-new StreamProcessor()
-  .receiving(receiverOptions)
+new KafkaStreamProcessor()
+  .<Long,Order>receiving(receiverOptions)   // ReceivingProcessor
+  .idempotently(offsetStore)    // IdempotentReceivingProcessor
   .sending(senderOptions)
   .using(PlatformTransactionBlock.supplier(transactionTemplate))
   .process((records, context) -> records
      .map(ConsumerRecord::value)
+     .flatMap(context.doOnce(audit))
      .flatMap(context.wrap(saveName))
-     .map(createConfirmation))
-       
+     .map(createConfirmation))  // Mono<Disposable>
+  .doAfterTerminate(()-> log("Processor terminated"))
+  .flatMap(processor -> 
+       createSource()
+            .doAfterTerminate(()-> log("Producer terminated"))
+            .doAfterTerminate(() -> processor.dispose()))
+  .doAfterTerminate(()-> log("Everything done"))
+  .subscribe()       
+   
+source
+    .startWith(processor.cache().first())
+    .doAfterTerminate(() -> processor)
+   
+     
+KafkaStreamProcessor
+  .create()
+  .receiving(receiverOptions)
+  .using(PlatformTransactionBlock.supplier(transactionTemplate))
+  .process((records, context) -> records
+     .map(ConsumerRecord::value)
+     .flatMap(context.wrap(saveName)))
+  
+KafkaStreamSource
+  .create()
+  .sending(senderOptions)
+  .using(PlatformTransactionBlock.supplier(transactionTemplate))
+  .
+  .process((lines,context) -> lines
+     .map(ConsumerRecord::value)
+     .flatMap(context.wrap(markAsSent))
+     .map(createConfirmation))  
+ 
        
 Flux<SenderRecord<Confirmation>> saveAndConfirmRecords(Flux<ReceiverRecords<String>> records, Context context) {
     return records

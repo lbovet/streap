@@ -90,33 +90,16 @@ public class ExactlyOnceBlock<U, V> extends BlockDecorator implements Idempotent
     }
 
     @Override
-    public Function<ConsumerRecord<U,V>, Mono<ConsumerRecord<U,V>>> wrapOnce(Consumer<ConsumerRecord<U,V>> operation) {
-        return t -> {
+    public Function<ConsumerRecord<U,V>, Mono<ConsumerRecord<U,V>>> doOnce(Function<ConsumerRecord<U,V>, Mono<Void>> operation) {
+        return record -> {
             if (lastOffset == null) {
-                lastOffset = offsetStore.read(t.partition());
+                lastOffset = offsetStore.read(record.partition());
             }
-            if (t.offset() > lastOffset) {
-                return wrap((ConsumerRecord<U,V> x) -> {
-                    operation.accept(x);
-                    offsetStore.write(t.partition(), x.offset());
-                    return x;
-                }).apply(t);
+            if (record.offset() > lastOffset) {
+                return operation.apply(record).then(Mono.just(record));
             } else {
-                return Mono.just(t);
+                return Mono.just(record);
             }
-        };
-    }
-
-    @Override
-    public Function<ConsumerRecord<U,V>, Mono<ConsumerRecord<U,V>>> doOnce(Consumer<ConsumerRecord<U,V>> operation) {
-        return t -> {
-            if (lastOffset == null) {
-                lastOffset = offsetStore.read(t.partition());
-            }
-            if (t.offset() > lastOffset) {
-                operation.accept(t);
-            }
-            return Mono.just(t);
         };
     }
 }
