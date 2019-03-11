@@ -24,6 +24,7 @@ begin
 
 ===> Interfaces: Mono -> Publisher ??
 
+```
 new KafkaStreamProcessor()
   .<Long,Order>receiving(receiverOptions)   // ReceivingProcessor
   .idempotently(offsetStore)    // IdempotentReceivingProcessor
@@ -33,19 +34,47 @@ new KafkaStreamProcessor()
      .map(ConsumerRecord::value)
      .flatMap(context.doOnce(audit))
      .flatMap(context.wrap(saveName))
-     .map(createConfirmation))  // Mono<Disposable>
+     .map(createConfirmation))  // Flux<Processor>
   .doAfterTerminate(()-> log("Processor terminated"))
-  .flatMap(processor -> 
-       createSource()
-            .doAfterTerminate(()-> log("Producer terminated"))
-            .doAfterTerminate(() -> processor.dispose()))
-  .doAfterTerminate(()-> log("Everything done"))
-  .subscribe()       
-   
-source
-    .startWith(processor.cache().first())
-    .doAfterTerminate(() -> processor)
-   
+  .publish().refcount(1, Duration.ofSeconds(1))               
+          
+source1 = source1.compose(depends(processor1, processor2))
+source2 = source2.compose(depends(processor1))
+
+merge(source1, source2)
+     
+Function<Flux<T>, Flux<T>> depends(Flux<U>... others) {
+    return (f) -> zip(others).flatMap(x -> f.last())
+}     
+
+graph(
+    edge(source1, processor1),
+    edge(source1, processor2),
+    edge(source2, processor2)
+).blockLast()
+ 
+Mono<Void> graph(Edge... edges) {
+    Flux.of(edges)
+        .groupBy(Edge::target)
+        .map(Flux::replay)      // because we traverse the group twice
+        .flatMap(edges ->
+            edges
+                .count()
+                .map(n -> edges.key().publish().refCount(n))
+                .flatMap(target -> edges
+                    .map(edge -> edge.newTarget(target)))
+        .groupBy(Edge::source)
+        .map(Flux::replay)
+        .flatMap(edges ->
+                   edge.newSource(edge.source().depends(edges.map(Edge::newTarget))
+                   .map(edge -> edgetarget))
+                .
+        .flatMap(Edge::combine)
+        .groupBy(Edge::index)
+        .
+        
+        
+
      
 KafkaStreamProcessor
   .create()
@@ -94,3 +123,5 @@ Function<Flux<String>,Flux<Confirmation>> saveAndConfirm(Context context) {
         .flatMap(context.wrap(saveName))
         .map(createConfirmation)
 }
+
+```
