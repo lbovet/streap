@@ -24,7 +24,7 @@ begin
 
 ===> Interfaces: Mono -> Publisher ??
 
-```
+``
 new KafkaStreamProcessor()
   .<Long,Order>receiving(receiverOptions)   // ReceivingProcessor
   .idempotently(offsetStore)    // IdempotentReceivingProcessor
@@ -84,11 +84,11 @@ KafkaStreamProcessor
      .map(ConsumerRecord::value)
      .flatMap(context.wrap(saveName)))
   
-KafkaStreamSource
+KafkaStreamProcessor
   .create()
+  .from(sourceFlux)
   .sending(senderOptions)
   .using(PlatformTransactionBlock.supplier(transactionTemplate))
-  .
   .process((lines,context) -> lines
      .map(ConsumerRecord::value)
      .flatMap(context.wrap(markAsSent))
