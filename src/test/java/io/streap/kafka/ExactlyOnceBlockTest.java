@@ -2,7 +2,7 @@ package io.streap.kafka;
 
 import io.streap.idempotence.OffsetStore;
 import io.streap.spring.JdbcOffsetStore;
-import io.streap.spring.PlatformTransactionBlock;
+import io.streap.spring.PlatformTransaction;
 import io.streap.test.EmbeddedDatabaseSupport;
 import io.streap.test.EmbeddedKafkaSupport;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -69,7 +69,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .receiveExactlyOnce(transactionManager)
                 .doOnNext(b -> System.out.println("Got batch"))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
-                        PlatformTransactionBlock.supplier(transactionTemplate)).transformer())
+                        PlatformTransaction.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
                         .map(ConsumerRecord::value)
                         .flatMap(block.wrap(saveName))
@@ -137,7 +137,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .receiveExactlyOnce(transactionManager)
                 .doOnNext(b -> System.out.println("Got batch" + b))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
-                        PlatformTransactionBlock.supplier(transactionTemplate)).transformer())
+                        PlatformTransaction.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
                         .map(ConsumerRecord::value)
                         .flatMap(block.wrap(saveName))
@@ -203,7 +203,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
-                        PlatformTransactionBlock.supplier(transactionTemplate)).with(offsetStore).transformer())
+                        PlatformTransaction.supplier(transactionTemplate)).with(offsetStore).transformer())
                 .doOnNext(System.out::println)
                 .concatMap(block -> block.items()
                         .flatMap(block.wrapOnce(x -> results.add("once: " + x.value())))
