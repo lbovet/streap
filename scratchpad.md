@@ -82,3 +82,33 @@ graph(
 ).blockLast()
 
 ```
+
+### Resequencer 
+
+```
+
+m = new LinkedHashMap()
+
+last = output.poll(output.committed() - 1)
+
+input.position(timestampToOffset(last.timestamp) - window - margin)
+
+while true
+    records = poll()
+    now = 0
+    for r in records
+        g = m.putIfAbsent(r.key, new Group())
+        g.add(r)
+        g.pollWritableRecords(r ->
+            if(r.offset > last.offset)
+                write(r)
+        if(g.complete()) {
+            if(r.offset > last.offset)
+                writeMarker(g.key)
+            m.remove(g)
+        now = max(now, r.timestamp)
+    if now == 0
+        now = date.now()
+    while g=m.peek()
+        if(g.timestamp < now - window)
+```
