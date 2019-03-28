@@ -13,21 +13,21 @@ import java.util.function.Supplier;
 /**
  * A block running operations inside a Spring Transaction.
  */
-public class PlatformTransactionBlock extends SingleThreadBlock {
+public class PlatformTransaction extends SingleThreadBlock {
 
     public static Supplier<Block> supplier(TransactionTemplate transactionTemplate) {
-        return () -> new PlatformTransactionBlock(transactionTemplate);
+        return () -> new PlatformTransaction(transactionTemplate);
     }
 
     private static ExecutorService executorService = Executors.newCachedThreadPool();
 
     private volatile TransactionStatus transactionStatus;
 
-    public PlatformTransactionBlock(TransactionTemplate transactionTemplate) {
+    public PlatformTransaction(TransactionTemplate transactionTemplate) {
         this(transactionTemplate, executorService);
     }
 
-    public PlatformTransactionBlock(TransactionTemplate transactionTemplate, ExecutorService executorService) {
+    public PlatformTransaction(TransactionTemplate transactionTemplate, ExecutorService executorService) {
         start(r -> transactionTemplate.execute((txStatus) -> {
             transactionStatus = txStatus;
             r.run();

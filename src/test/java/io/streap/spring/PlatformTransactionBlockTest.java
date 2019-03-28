@@ -40,7 +40,7 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
         jdbcTemplate.execute("CREATE TABLE PERSON (ID INTEGER, NAME VARCHAR)");
         jdbcTemplate.update("INSERT INTO PERSON(ID, NAME) VALUES (?, ?)", 1, "john");
 
-        Block block = new PlatformTransactionBlock(transactionTemplate);
+        Block block = new PlatformTransaction(transactionTemplate);
         block.wrap((x)->
                 jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary").block();
         assertEquals("john",
@@ -63,7 +63,7 @@ public class PlatformTransactionBlockTest extends EmbeddedDatabaseSupport {
         jdbcTemplate.execute("CREATE TABLE PERSON (ID INTEGER, NAME VARCHAR)");
         jdbcTemplate.update("INSERT INTO PERSON(ID, NAME) VALUES (?, ?)", 1, "john");
 
-        Block block = new PlatformTransactionBlock(transactionTemplate);
+        Block block = new PlatformTransaction(transactionTemplate);
         block.wrap((x)->
                 jdbcTemplate.update("UPDATE PERSON SET NAME = ? WHERE ID = ?",x, 1)).apply("mary").block();
         assertEquals("john",
