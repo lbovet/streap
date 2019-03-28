@@ -1,6 +1,6 @@
 package io.streap.spring;
 
-import io.streap.block.Block;
+import io.streap.core.block.Block;
 import io.streap.test.EmbeddedDatabaseSupport;
 import org.junit.Test;
 

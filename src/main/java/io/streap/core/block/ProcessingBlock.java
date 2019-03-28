@@ -1,4 +1,4 @@
-package io.streap.block;
+package io.streap.core.block;
 
 import reactor.core.publisher.Flux;
 

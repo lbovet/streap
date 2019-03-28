@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.streap.kafka;
+package io.streap.kafka.idempotence;
 
-import io.streap.idempotence.IdempotentPerformer;
-import io.streap.idempotence.OffsetStore;
+import io.streap.core.idempotence.IdempotentPerformer;
+import io.streap.core.idempotence.OffsetStore;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.TopicPartition;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;

@@ -1,4 +1,4 @@
-package io.streap.idempotence;
+package io.streap.core.idempotence;
 
 import reactor.core.publisher.Mono;
 

@@ -1,15 +1,16 @@
-package io.streap.kafka;
+package io.streap.kafka.block;
 
-import io.streap.block.*;
-import io.streap.idempotence.IdempotentBlock;
-import io.streap.idempotence.OffsetStore;
+import io.streap.core.block.Block;
+import io.streap.core.block.BlockDecorator;
+import io.streap.core.block.ProcessingBlock;
+import io.streap.core.idempotence.IdempotentBlock;
+import io.streap.core.idempotence.OffsetStore;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.sender.TransactionManager;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 

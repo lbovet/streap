@@ -1,6 +1,7 @@
 package io.streap.kafka;
 
-import io.streap.idempotence.OffsetStore;
+import io.streap.core.idempotence.OffsetStore;
+import io.streap.kafka.block.ExactlyOnceBlock;
 import io.streap.spring.JdbcOffsetStore;
 import io.streap.spring.PlatformTransaction;
 import io.streap.test.EmbeddedDatabaseSupport;

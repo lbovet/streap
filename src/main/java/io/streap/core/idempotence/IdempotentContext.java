@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.streap.idempotence;
+package io.streap.core.idempotence;
 
-import io.streap.context.Context;
+import io.streap.core.context.Context;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;

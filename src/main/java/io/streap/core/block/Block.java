@@ -1,6 +1,6 @@
-package io.streap.block;
+package io.streap.core.block;
 
-import io.streap.context.Context;
+import io.streap.core.context.Context;
 import reactor.core.publisher.Mono;
 
 /**

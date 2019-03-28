@@ -1,7 +1,7 @@
 package io.streap.spring;
 
-import io.streap.block.Block;
-import io.streap.block.SingleThreadBlock;
+import io.streap.core.block.Block;
+import io.streap.core.block.SingleThreadBlock;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.publisher.Mono;

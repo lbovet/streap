@@ -1,5 +1,6 @@
 package io.streap.kafka;
 
+import io.streap.kafka.processor.TopicReaderWriter;
 import io.streap.spring.PlatformTransaction;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -14,7 +15,7 @@ public class ProcessorTest {
     public void builders() {
 
         // Idempotent processor
-        KafkaProcessor
+        TopicReaderWriter
                 .<Long, String>from(ReceiverOptions.create())
                 .withIdempotence(null)
                 .<Long, String>to(SenderOptions.create())
@@ -27,7 +28,7 @@ public class ProcessorTest {
                         .map(i -> new ProducerRecord<>("topic.Name", i)));
 
         // Source
-        KafkaProcessor
+        TopicReaderWriter
                 .from(Flux.range(1, 2))
                 .<String, Integer>to(SenderOptions.create())
                 .withContext(PlatformTransaction.supplier(null))

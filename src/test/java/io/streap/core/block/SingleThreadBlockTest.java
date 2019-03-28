@@ -1,5 +1,6 @@
-package io.streap.block;
+package io.streap.core.block;
 
+import io.streap.core.block.SingleThreadBlock;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Flux;

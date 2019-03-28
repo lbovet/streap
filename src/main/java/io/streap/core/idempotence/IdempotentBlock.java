@@ -1,6 +1,6 @@
-package io.streap.idempotence;
+package io.streap.core.idempotence;
 
-import io.streap.block.ProcessingBlock;
+import io.streap.core.block.ProcessingBlock;
 
 /**
  * Block providing idempotence by skipping non-idempotent operations.

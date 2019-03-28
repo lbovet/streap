@@ -1,8 +1,8 @@
-package io.streap.processor;
+package io.streap.core.processor;
 
-import io.streap.block.Block;
-import io.streap.block.DefaultBlock;
-import io.streap.context.Context;
+import io.streap.core.block.Block;
+import io.streap.core.block.DefaultBlock;
+import io.streap.core.context.Context;
 import reactor.core.publisher.Flux;
 
 import java.util.Optional;
