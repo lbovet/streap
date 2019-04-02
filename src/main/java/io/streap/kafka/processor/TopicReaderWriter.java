@@ -21,7 +21,7 @@ public class TopicReaderWriter<K, V, KP, VP> extends StreamProcessor<ConsumerRec
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, Context, Flux<ProducerRecord<KP, VP>>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, Context, Flux<? extends ProducerRecord<KP, VP>>> body) {
         return null;
     }
 }

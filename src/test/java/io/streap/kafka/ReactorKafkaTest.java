@@ -128,8 +128,7 @@ public class ReactorKafkaTest {
                                         }
                                     });
                                     return null;
-                                })
-                                        .then(sender.transactionManager().abort())
+                                }).then(sender.transactionManager().abort())
                         ))
                 .subscribe();
 

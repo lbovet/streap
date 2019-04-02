@@ -24,7 +24,7 @@ public class IdempotentTopicReaderWriter<K, V, KP, VP> extends StreamProcessor<C
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<ProducerRecord<KP, VP>>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<? extends ProducerRecord<KP, VP>>> body) {
         return null;
     }
 }

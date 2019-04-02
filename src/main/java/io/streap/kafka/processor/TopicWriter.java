@@ -18,7 +18,7 @@ public class TopicWriter<I, K, V> extends StreamProcessor<I, Context, ProducerRe
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<I>, Context, Flux<ProducerRecord<K, V>>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<I>, Context, Flux<? extends ProducerRecord<K, V>>> body) {
         return null;
     }
 }

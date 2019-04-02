@@ -25,7 +25,7 @@ public class IdempotentTopicReader<K, V> extends StreamProcessor<ConsumerRecord<
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<Object>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<?>> body) {
         return null;
     }
 }
