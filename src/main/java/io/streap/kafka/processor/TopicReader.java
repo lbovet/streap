@@ -10,10 +10,9 @@ import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.SenderOptions;
 
-import java.time.Duration;
 import java.util.function.BiFunction;
 
-public class TopicReader<K, V> extends TopicProcessor<K, V, Context, Object> {
+public class TopicReader<K, V> extends ReceivingProcessor<K, V, Context, Object> {
 
     private ReceiverOptions<K, V> receiverOptions;
 
@@ -30,17 +29,16 @@ public class TopicReader<K, V> extends TopicProcessor<K, V, Context, Object> {
     }
 
     @Override
-    public Flux<TopicReader> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<?>> body) {
+    public <T> Flux<T> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<T>> body) {
         return Flux.just(KafkaReceiver.create(receiverOptions))
                 .flatMap(receiver -> receiver
                         .receiveAutoAck()
                         .concatMap(records -> {
                             Block block = createBlock();
-                            return body.apply(records, block)
+                            return body.apply(records.publish().autoConnect(), block)
                                     .then(block.commit())
-                                    .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions));
-                        }))
-                .thenMany(Mono.<TopicReader>empty())
-                .mergeWith(Mono.just(this));
+                                    .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions))
+                                    .then(Mono.empty());
+                        }));
     }
 }

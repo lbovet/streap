@@ -1,7 +1,6 @@
 package io.streap.kafka.processor;
 
 import io.streap.core.context.Context;
-import io.streap.core.processor.StreamProcessor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import reactor.core.publisher.Flux;
@@ -10,7 +9,7 @@ import reactor.kafka.sender.SenderOptions;
 
 import java.util.function.BiFunction;
 
-public class TopicReaderWriter<K, V, KP, VP> extends TopicProcessor<K, V, Context, ProducerRecord<KP, VP>> {
+public class TopicReaderWriter<K, V, KP, VP> extends ReceivingProcessor<K, V, Context, ProducerRecord<KP, VP>> {
 
     private ReceiverOptions<K, V> receiverOptions;
     private SenderOptions<KP, VP> senderOptions;
@@ -21,7 +20,7 @@ public class TopicReaderWriter<K, V, KP, VP> extends TopicProcessor<K, V, Contex
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<? extends ProducerRecord<KP, VP>>> body) {
+    public <T extends ProducerRecord<KP, VP>> Flux<T> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<T>> body) {
         return null;
     }
 }

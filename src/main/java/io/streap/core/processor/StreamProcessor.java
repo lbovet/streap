@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 
 public abstract class StreamProcessor<R,C extends Context,S> {
 
-    public abstract Flux<? extends StreamProcessor> process(BiFunction<Flux<? extends R>, C, Flux<? extends S>> body);
+    public abstract <T extends S> Flux<T> process(BiFunction<Flux<? extends R>, C, Flux<T>> body);
 
     private Supplier<Block> blockSupplier = null;
 

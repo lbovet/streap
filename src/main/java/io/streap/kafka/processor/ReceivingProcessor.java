@@ -27,7 +27,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.function.Function;
 
-public abstract class TopicProcessor<K, V, C extends Context, S> extends StreamProcessor<ConsumerRecord<K, V>, C, S> {
+public abstract class ReceivingProcessor<K, V, C extends Context, S> extends StreamProcessor<ConsumerRecord<K, V>, C, S> {
+
     protected <T> Function<Throwable, Mono<T>> abortAndResetOffsets(Mono<T> abort, KafkaReceiver<K, V> receiver, ReceiverOptions<K, V> options) {
         long backOff = (long) options.consumerProperties().getOrDefault(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG, 100L);
         return e -> receiver.doOnConsumer(consumer -> {
@@ -41,6 +42,7 @@ public abstract class TopicProcessor<K, V, C extends Context, S> extends StreamP
             return null;
         })
                 .then(abort)
-                .delayElement(Duration.ofMillis(backOff));
+                .then(Mono.delay(Duration.ofMillis(backOff)))
+                .then(Mono.<T>empty());
     }
 }

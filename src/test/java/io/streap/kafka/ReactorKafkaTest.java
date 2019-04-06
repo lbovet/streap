@@ -1,33 +1,23 @@
 package io.streap.kafka;
 
 import io.streap.test.EmbeddedKafkaSupport;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.TopicPartition;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 
-import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
-import static io.streap.test.EmbeddedKafkaSupport.waitForAssignment;
 import static org.junit.Assert.assertEquals;
 
 

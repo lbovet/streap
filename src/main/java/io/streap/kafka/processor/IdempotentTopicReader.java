@@ -2,7 +2,6 @@ package io.streap.kafka.processor;
 
 import io.streap.core.idempotence.IdempotentContext;
 import io.streap.core.idempotence.OffsetStore;
-import io.streap.core.processor.StreamProcessor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import reactor.core.publisher.Flux;
 import reactor.kafka.receiver.ReceiverOptions;
@@ -10,7 +9,7 @@ import reactor.kafka.sender.SenderOptions;
 
 import java.util.function.BiFunction;
 
-public class IdempotentTopicReader<K, V> extends TopicProcessor<K, V, IdempotentContext<ConsumerRecord<K, V>>, Object> {
+public class IdempotentTopicReader<K, V> extends ReceivingProcessor<K, V, IdempotentContext<ConsumerRecord<K, V>>, Object> {
 
     private ReceiverOptions<K, V> receiverOptions;
     private OffsetStore offsetStore;
@@ -25,7 +24,7 @@ public class IdempotentTopicReader<K, V> extends TopicProcessor<K, V, Idempotent
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<?>> body) {
+    public <T> Flux<T> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<T>> body) {
         return null;
     }
 }
