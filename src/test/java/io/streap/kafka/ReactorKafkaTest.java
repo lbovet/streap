@@ -48,8 +48,6 @@ public class ReactorKafkaTest {
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
-        waitForAssignment();
-
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("at.least.once.In", null, null, 1, "hello", 1)))
                 .then()
@@ -77,8 +75,6 @@ public class ReactorKafkaTest {
                 .doOnNext(i -> latch.countDown())
                 .onErrorResume(e -> sender.transactionManager().abort().then(Mono.error(e)))
                 .subscribe();
-
-        waitForAssignment();
 
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("exactly.once.In", null, null, 1, "hello", 1)))
@@ -132,8 +128,6 @@ public class ReactorKafkaTest {
                         ))
                 .subscribe();
 
-        EmbeddedKafkaSupport.waitForAssignment();
-
         Thread.sleep(800);
 
         KafkaSender.create(senderOptions())
@@ -147,5 +141,34 @@ public class ReactorKafkaTest {
         latch.await(20, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
         assertEquals("hello-0hello-1hello-2", result.toString());
+    }
+
+    @Test
+    public void testRefCount() {
+        Flux<Integer> f = Flux
+                .just(1, 2, 3, 4, 5, 6)
+                .log()
+                .cache(1);
+
+        f
+                .map(i -> "(" + i + ")")
+                .doOnNext(System.out::println)
+                .then(f.last().map(i -> "[" + i + "]"))
+                .doOnNext(System.out::println)
+                .block();
+    }
+
+    @Test
+    public void testError() {
+        Flux
+                .just(1, 2, 3, 4, 5, 6)
+                .doOnNext(i -> {
+                    if(i==3) throw new RuntimeException();
+                })
+                .then(Mono.just(7))
+                .onErrorReturn(8)
+                .doOnNext(System.out::println)
+                .block();
+
     }
 }

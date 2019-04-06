@@ -23,7 +23,6 @@ public class EmbeddedKafkaSupport {
 
     private static KafkaEmbedded kafka;
     private static int count = 0;
-    private static Semaphore readySemaphore = new Semaphore(0);
 
     public static KafkaEmbedded init() {
         if(kafka == null) {
@@ -51,21 +50,13 @@ public class EmbeddedKafkaSupport {
     public static ReceiverOptions<Integer, String> receiverOptions(String topic) {
         Map<String, Object> consumerProps = new HashMap<>();
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBrokersAsString());
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "sample-group-"+(count++));
         consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, "sample-consumer-"+(count++));
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class);
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         return ReceiverOptions.<Integer,String>create(consumerProps)
-                .subscription(Collections.singleton(topic))
-                .addAssignListener(partitions -> readySemaphore.release());
-    }
-
-    public static void waitForAssignment() {
-        try {
-            assertTrue("Partitions not assigned", readySemaphore.tryAcquire(1000, TimeUnit.MILLISECONDS));
-            readySemaphore = new Semaphore(0);
-        } catch (InterruptedException e) {
-        }
+                .subscription(Collections.singleton(topic));
     }
 }

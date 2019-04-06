@@ -3,8 +3,6 @@ package io.streap.kafka.processor;
 import io.streap.core.block.Block;
 import io.streap.core.context.Context;
 import io.streap.core.idempotence.OffsetStore;
-import io.streap.core.processor.StreamProcessor;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -13,10 +11,9 @@ import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.SenderOptions;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.function.BiFunction;
 
-public class TopicReader<K, V> extends StreamProcessor<ConsumerRecord<K, V>, Context, Object> {
+public class TopicReader<K, V> extends TopicProcessor<K, V, Context, Object> {
 
     private ReceiverOptions<K, V> receiverOptions;
 
@@ -32,28 +29,16 @@ public class TopicReader<K, V> extends StreamProcessor<ConsumerRecord<K, V>, Con
         return new TopicReaderWriter<>(receiverOptions, senderOptions);
     }
 
-    /**
-     * TODO:
-     */
     @Override
-    public Flux<TopicReader> process(BiFunction<Flux<ConsumerRecord<K, V>>, Context, Flux<?>> body) {
-        /*int fetchMaxWait =
-                (int)receiverOptions.consumerProperties().getOrDefault(ConsumerConfig.F, 500);
-        int fetchMinSize =
-                (int)receiverOptions.consumerProperties().getOrDefault(ConsumerConfig.FE, 500);
-
-        Duration.ofMillis();
-        Long fetchMaxWait = Duration.ofMillis(receiverOptions.consumerProperty(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG));*/
-        return Mono.just(KafkaReceiver.create(receiverOptions))
-                .flux()
+    public Flux<TopicReader> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<?>> body) {
+        return Flux.just(KafkaReceiver.create(receiverOptions))
                 .flatMap(receiver -> receiver
-                        .receive()
-                        //.windowTimeout(fetchMaxWait, fetchMinSize)
+                        .receiveAutoAck()
                         .concatMap(records -> {
                             Block block = createBlock();
                             return body.apply(records, block)
                                     .then(block.commit())
-                                    .onErrorResume(e -> block.abort());
+                                    .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions));
                         }))
                 .thenMany(Mono.<TopicReader>empty())
                 .mergeWith(Mono.just(this));

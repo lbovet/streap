@@ -10,7 +10,7 @@ import reactor.kafka.sender.SenderOptions;
 
 import java.util.function.BiFunction;
 
-public class IdempotentTopicReader<K, V> extends StreamProcessor<ConsumerRecord<K, V>, IdempotentContext<ConsumerRecord<K, V>>, Object> {
+public class IdempotentTopicReader<K, V> extends TopicProcessor<K, V, IdempotentContext<ConsumerRecord<K, V>>, Object> {
 
     private ReceiverOptions<K, V> receiverOptions;
     private OffsetStore offsetStore;
@@ -25,7 +25,7 @@ public class IdempotentTopicReader<K, V> extends StreamProcessor<ConsumerRecord<
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<?>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, IdempotentContext<ConsumerRecord<K, V>>, Flux<?>> body) {
         return null;
     }
 }

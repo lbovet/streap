@@ -27,9 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
-import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
-import static io.streap.test.EmbeddedKafkaSupport.waitForAssignment;
+import static io.streap.test.EmbeddedKafkaSupport.*;
 import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 import static org.junit.Assert.assertEquals;
 
@@ -80,8 +78,6 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .onErrorResume(e -> block.abort()))
                 .subscribe();
 
-        waitForAssignment();
-
         // Receive Confirmations
         KafkaReceiver
                 .create(receiverOptions(confirmationTopic))
@@ -90,8 +86,6 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnNext(m -> latch.countDown())
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
-
-        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())
@@ -151,8 +145,6 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         }))
                 .subscribe();
 
-        waitForAssignment();
-
         List<String> results = new ArrayList<>();
 
         // Receive Confirmations
@@ -163,8 +155,6 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .doOnNext(m -> results.add(m.value()))
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
-
-        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())
@@ -227,8 +217,6 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                             return Mono.just("ok");
                         })
                 ).subscribe();
-
-        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())

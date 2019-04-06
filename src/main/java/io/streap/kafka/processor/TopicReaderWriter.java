@@ -10,7 +10,7 @@ import reactor.kafka.sender.SenderOptions;
 
 import java.util.function.BiFunction;
 
-public class TopicReaderWriter<K, V, KP, VP> extends StreamProcessor<ConsumerRecord<K, V>, Context, ProducerRecord<KP, VP>> {
+public class TopicReaderWriter<K, V, KP, VP> extends TopicProcessor<K, V, Context, ProducerRecord<KP, VP>> {
 
     private ReceiverOptions<K, V> receiverOptions;
     private SenderOptions<KP, VP> senderOptions;
@@ -21,7 +21,7 @@ public class TopicReaderWriter<K, V, KP, VP> extends StreamProcessor<ConsumerRec
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<ConsumerRecord<K, V>>, Context, Flux<? extends ProducerRecord<KP, VP>>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<? extends ProducerRecord<KP, VP>>> body) {
         return null;
     }
 }

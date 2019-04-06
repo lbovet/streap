@@ -54,7 +54,7 @@ public class ProcessorTest {
     @Test
     public void testTopicReaderOk() throws InterruptedException {
 
-        String topic = "test.topic.reader.Name";
+        String topic = "test.topic.reader.ok.Name";
         CountDownLatch latch = new CountDownLatch(3);
 
         KafkaProcessor
@@ -65,8 +65,6 @@ public class ProcessorTest {
                         .doOnNext(System.out::println)
                         .doOnNext(x -> latch.countDown()))
                 .subscribe();
-
-        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())
@@ -84,8 +82,8 @@ public class ProcessorTest {
     @Test
     public void testTopicReaderFailure() throws InterruptedException {
 
-        String topic = "test.topic.reader.Name";
-        CountDownLatch latch = new CountDownLatch(1);
+        String topic = "test.topic.reader.failure.Name";
+        CountDownLatch latch = new CountDownLatch(2);
 
         KafkaProcessor
                 .from(receiverOptions(topic))
@@ -105,8 +103,6 @@ public class ProcessorTest {
                             }
                         }))
                 .subscribe();
-
-        waitForAssignment();
 
         // Send the names
         KafkaSender.create(senderOptions())

@@ -20,7 +20,7 @@ public class FluxReader<I> extends StreamProcessor<I, Context, Object> {
     }
 
     @Override
-    public Flux<? extends StreamProcessor> process(BiFunction<Flux<I>, Context, Flux<?>> body) {
+    public Flux<? extends StreamProcessor> process(BiFunction<Flux<? extends I>, Context, Flux<?>> body) {
         return null;
     }
 }
