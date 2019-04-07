@@ -9,8 +9,9 @@
     <logger name="org.springframework" level="WARN"/>
     <logger name="reactor.kafka" level="DEBUG"/>
     <logger name="org.apache.kafka.clients" level="WARN"/>
+    <logger name="org.apache.kafka.common.metrics" level="WARN"/>
     <logger name="org.apache.zookeeper" level="OFF"/>
-    <root level="WARN">
+    <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
     </root>
 </configuration>
