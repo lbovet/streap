@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 import reactor.core.publisher.Flux;
@@ -120,7 +119,6 @@ public class ProcessorTest {
     }
 
     @Test
-    @Ignore
     public void testTopicReaderWriter() throws InterruptedException {
         String topicIn = "test.topic.reader.writer.ok.input.Name";
         String topicOut = topicIn.replace("input", "output");
@@ -128,10 +126,45 @@ public class ProcessorTest {
 
         KafkaProcessor
                 .from(receiverOptions(topicIn))
+                .to(senderOptions("txId"))
                 .process((records, context) -> records
                         .map(ConsumerRecord::value)
                         .flatMap(context.wrap(String::toUpperCase))
-                        .log()
+                        .map(name -> new ProducerRecord<>(topicOut, name)))
+                .subscribe();
+
+        // Send the names
+        KafkaSender.create(senderOptions())
+                .send(Flux.just("paul", "john", "luke")
+                        .map(name -> SenderRecord.create(topicIn, null, null, 1, name, 1)))
+                .then()
+                .doOnSuccess(s -> log.info("Sent"))
+                .subscribe();
+
+        // Receive Confirmations
+        KafkaReceiver
+                .create(receiverOptions(topicOut))
+                .receive()
+                .doOnNext(m -> log.info("Received:" + m.value()))
+                .doOnNext(m -> latch.countDown())
+                .subscribe();
+
+        latch.await(10, TimeUnit.SECONDS);
+        assertEquals(0L, latch.getCount());
+    }
+
+    @Test
+    public void testTopicReaderWriter2() throws InterruptedException {
+        String topicIn = "test.topic.reader.writer.ok.input.Name";
+        String topicOut = topicIn.replace("input", "output");
+        CountDownLatch latch = new CountDownLatch(3);
+
+        KafkaProcessor
+                .from(receiverOptions(topicIn))
+                .to(senderOptions("txId"))
+                .process((records, context) -> records
+                        .map(ConsumerRecord::value)
+                        .flatMap(context.wrap(String::toUpperCase))
                         .map(name -> new ProducerRecord<>(topicOut, name)))
                 .subscribe();
 

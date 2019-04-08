@@ -5,6 +5,7 @@ import io.streap.core.context.Context;
 import io.streap.kafka.block.ExactlyOnceBlock;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -40,12 +41,12 @@ public class TopicReaderWriter<K, V, KP, VP> extends ReceivingProcessor<K, V, Co
                             .concatMap(records -> {
                                 Block block = new ExactlyOnceBlock<>(transactionManager, createBlock(), records);
                                 return body.apply(records.publish().autoConnect(), block)
-                                                .log()
-                                        .transform( f -> f
-                                                .zipWith(f
-                                                        .publishOn(Schedulers.parallel())
-                                                        .map(p -> SenderRecord.create(p, null))
-                                                        .compose(sender::send)))
+                                        .transform(f -> {
+                                            f = f.publish().refCount(2);
+                                            return f.zipWith(f
+                                                    .map(p -> SenderRecord.create(p, null))
+                                                    .compose(sender::send));
+                                        })
                                         .map(Tuple2::getT1)
                                         .then(block.commit())
                                         .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions))

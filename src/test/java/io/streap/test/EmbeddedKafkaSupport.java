@@ -47,6 +47,10 @@ public class EmbeddedKafkaSupport {
         return SenderOptions.<Integer,String>create(props).maxInFlight(1024);
     }
 
+    public static SenderOptions<Integer,String> senderOptions(String txId) {
+        return senderOptions().producerProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, txId);
+    }
+
     public static ReceiverOptions<Integer, String> receiverOptions(String topic) {
         Map<String, Object> consumerProps = new HashMap<>();
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBrokersAsString());
