@@ -3,14 +3,18 @@
 <configuration>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d [%t] %-5p %c:%L - %m%n</pattern>
+            <pattern>%magenta(%d) %highlight(%-5p) %yellow([%t]) %cyan(%c{30}:%L) - %boldWhite(%highlight(%m)) %n</pattern>
         </encoder>
     </appender>
     <logger name="org.springframework" level="WARN"/>
     <logger name="reactor.kafka" level="DEBUG"/>
     <logger name="org.apache.kafka.clients" level="WARN"/>
-    <logger name="org.apache.kafka.common.metrics" level="WARN"/>
+    <logger name="org.apache.kafka.clients" level="ERROR"/>
+    <logger name="org.apache.kafka" level="WARN"/>
     <logger name="org.apache.zookeeper" level="OFF"/>
+    <logger name="org.I0Itec.zkclient" level="WARN"/>
+    <logger name="org.apache.kafka.test" level="OFF"/>
+    <logger name="kafka.server" level="WARN"/>
     <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
     </root>

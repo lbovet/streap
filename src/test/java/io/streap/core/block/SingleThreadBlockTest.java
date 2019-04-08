@@ -1,6 +1,6 @@
 package io.streap.core.block;
 
-import io.streap.core.block.SingleThreadBlock;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
@@ -19,6 +19,7 @@ import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+@Slf4j
 public class SingleThreadBlockTest {
 
     @Test
@@ -91,7 +92,7 @@ public class SingleThreadBlockTest {
         Flux.range(0, 4)
                 .delayElements(Duration.ofMillis(50))
                 .doOnNext(i -> {
-                    System.out.println("Submitted task from " + Thread.currentThread().getName());
+                    log.info("Submitted task");
                     executor.submit(() -> block.wrap(fn).apply(i));
                     expected.add(t + "." + i + ".in");
                     expected.add(t + "." + i + ".out");

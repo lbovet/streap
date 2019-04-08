@@ -3,6 +3,7 @@ package io.streap.kafka;
 import io.streap.core.block.DefaultBlock;
 import io.streap.spring.PlatformTransaction;
 import io.streap.test.EmbeddedKafkaSupport;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.ClassRule;
@@ -24,6 +25,7 @@ import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
 import static org.junit.Assert.assertEquals;
 
+@Slf4j
 public class ProcessorTest {
 
     @ClassRule
@@ -64,7 +66,7 @@ public class ProcessorTest {
                 .process((records, context) -> records
                         .map(ConsumerRecord::value)
                         .flatMap(context.wrap(String::toUpperCase))
-                        .doOnNext(System.out::println)
+                        .log()
                         .doOnNext(x -> latch.countDown()))
                 .subscribe();
 
@@ -73,8 +75,7 @@ public class ProcessorTest {
                 .send(Flux.just("paul", "john", "luke")
                         .map(name -> SenderRecord.create(topic, null, null, 1, name, 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         latch.await(10, TimeUnit.SECONDS);
@@ -98,7 +99,7 @@ public class ProcessorTest {
                 })
                 .process((records, context) -> records
                         .map(ConsumerRecord::value)
-                        .doOnNext(System.out::println)
+                        .log()
                         .doOnNext(name -> {
                             if (name.equals("john")) {
                                 throw new RuntimeException("Oh");
@@ -111,8 +112,7 @@ public class ProcessorTest {
                 .send(Flux.just("paul", "john", "luke")
                         .map(name -> SenderRecord.create(topic, null, null, 1, name, 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         latch.await(10, TimeUnit.SECONDS);
@@ -140,16 +140,15 @@ public class ProcessorTest {
                 .send(Flux.just("paul", "john", "luke")
                         .map(name -> SenderRecord.create(topicIn, null, null, 1, name, 1)))
                 .then()
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         // Receive Confirmations
         KafkaReceiver
                 .create(receiverOptions(topicOut))
                 .receive()
-                .doOnNext(m -> System.out.println("Received:" + m.value()))
+                .doOnNext(m -> log.info("Received:" + m.value()))
                 .doOnNext(m -> latch.countDown())
-                .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
         latch.await(10, TimeUnit.SECONDS);

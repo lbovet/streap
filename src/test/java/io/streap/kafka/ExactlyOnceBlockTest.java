@@ -6,6 +6,7 @@ import io.streap.spring.JdbcOffsetStore;
 import io.streap.spring.PlatformTransaction;
 import io.streap.test.EmbeddedDatabaseSupport;
 import io.streap.test.EmbeddedKafkaSupport;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -31,6 +32,7 @@ import static io.streap.test.EmbeddedKafkaSupport.*;
 import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 import static org.junit.Assert.assertEquals;
 
+@Slf4j
 public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
 
     @ClassRule
@@ -52,7 +54,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
 
         Function<String, String> saveName = (name) -> {
             jdbcTemplate.update("INSERT INTO PERSON(NAME) VALUES (?)", name);
-            System.out.println("Wrote " + name);
+            log.info("Wrote " + name);
             return name;
         };
 
@@ -66,7 +68,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
-                .doOnNext(b -> System.out.println("Got batch"))
+                .doOnNext(b -> log.info("Got batch"))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransaction.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
@@ -82,9 +84,8 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(confirmationTopic))
                 .receive()
-                .doOnNext(m -> System.out.println("Received:" + m.value()))
+                .doOnNext(m -> log.info("Received:" + m.value()))
                 .doOnNext(m -> latch.countDown())
-                .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
         // Send the names
@@ -93,7 +94,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .map(name -> SenderRecord.create(nameTopic, null, null, 1, name, 1)))
                 .then()
                 .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         latch.await(10, TimeUnit.SECONDS);
@@ -115,7 +116,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
 
         Function<String, String> saveName = (name) -> {
             jdbcTemplate.update("INSERT INTO PERSON(NAME) VALUES (?)", name);
-            System.out.println("Wrote " + name);
+            log.info("Wrote " + name);
             if (name.equals("paul")) {
                 throw new RuntimeException("I don't like him");
             }
@@ -130,7 +131,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(nameTopic))
                 .receiveExactlyOnce(transactionManager)
-                .doOnNext(b -> System.out.println("Got batch" + b))
+                .doOnNext(b -> log.info("Got batch" + b))
                 .compose(ExactlyOnceBlock.<Integer, String>createBlock(transactionManager,
                         PlatformTransaction.supplier(transactionTemplate)).transformer())
                 .concatMap(block -> block.items()
@@ -140,7 +141,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .compose(confirmationSender::send)
                         .then(block.commit())
                         .onErrorResume(e -> {
-                            System.out.println(e.getMessage());
+                            log.info(e.getMessage());
                             return block.abort();
                         }))
                 .subscribe();
@@ -151,9 +152,8 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
         KafkaReceiver
                 .create(receiverOptions(confirmationTopic))
                 .receive()
-                .doOnNext(m -> System.out.println("Received:" + m.value()))
+                .doOnNext(m -> log.info("Received:" + m.value()))
                 .doOnNext(m -> results.add(m.value()))
-                .doOnError(Throwable::printStackTrace)
                 .subscribe();
 
         // Send the names
@@ -161,8 +161,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .send(Flux.fromArray(names)
                         .map(name -> SenderRecord.create(nameTopic, null, null, 1, name, 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         Thread.sleep(2000);
@@ -205,10 +204,10 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                         .last()
                         .flatMap(x -> {
                             if (results.size() < 15) {
-                                System.out.println("ABORT");
+                                log.info("ABORT");
                                 return block.abort();
                             } else {
-                                System.out.println("COMMIT");
+                                log.info("COMMIT");
                                 return block.commit();
                             }
                         })
@@ -223,8 +222,7 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
                 .send(Flux.fromArray(names)
                         .map(name -> SenderRecord.create(nameTopic, null, null, 1, name, 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         Thread.sleep(5000);

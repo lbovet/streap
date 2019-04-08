@@ -1,6 +1,7 @@
 package io.streap.kafka;
 
 import io.streap.test.EmbeddedKafkaSupport;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -20,7 +21,7 @@ import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
 import static org.junit.Assert.assertEquals;
 
-
+@Slf4j
 public class ReactorKafkaTest {
 
     @ClassRule
@@ -33,7 +34,7 @@ public class ReactorKafkaTest {
         KafkaReceiver
                 .create(receiverOptions("at.least.once.In"))
                 .receive()
-                .doOnNext(m -> System.out.println("Received:" + m.value()))
+                .doOnNext(m -> log.info("Received:" + m.value()))
                 .doOnNext(m -> latch.countDown())
                 .doOnError(Throwable::printStackTrace)
                 .subscribe();
@@ -41,8 +42,7 @@ public class ReactorKafkaTest {
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("at.least.once.In", null, null, 1, "hello", 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         latch.await(10, TimeUnit.SECONDS);
@@ -59,9 +59,9 @@ public class ReactorKafkaTest {
         KafkaReceiver
                 .create(receiverOptions("exactly.once.In"))
                 .receiveExactlyOnce(sender.transactionManager())
-                .doOnNext(m -> System.out.println("Received batch:" + m))
+                .doOnNext(m -> log.info("Received batch:" + m))
                 .concatMap(f -> f)
-                .doOnNext(i -> System.out.println("Received item:" + i.value()))
+                .doOnNext(i -> log.info("Received item:" + i.value()))
                 .doOnNext(i -> latch.countDown())
                 .onErrorResume(e -> sender.transactionManager().abort().then(Mono.error(e)))
                 .subscribe();
@@ -69,8 +69,7 @@ public class ReactorKafkaTest {
         KafkaSender.create(senderOptions())
                 .send(Mono.just(SenderRecord.create("exactly.once.In", null, null, 1, "hello", 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         latch.await(10, TimeUnit.SECONDS);
@@ -89,27 +88,27 @@ public class ReactorKafkaTest {
         KafkaReceiver<Integer, String> receiver = KafkaReceiver.create(receiverOptions("consume.again.In"));
         receiver
                 .receiveExactlyOnce(sender.transactionManager())
-                .doOnNext(m -> System.out.println("Received batch"))
+                .doOnNext(m -> log.info("Received batch"))
                 .concatMap(f -> f
                         .publish().autoConnect()
-                        .doOnNext(i -> System.out.println("Received item:" + i.value()))
+                        .doOnNext(i -> log.info("Received item:" + i.value()))
                         .doOnNext(i -> {
                             if (shouldStop.getAndSet(false)) {
-                                System.out.println("aborting");
+                                log.info("aborting");
                                 throw new RuntimeException("Aborted when item 1 is first seen");
                             }
                         })
                         .doOnNext(i -> result.append(i.value()))
-                        .doOnNext(i -> System.out.println("result:" + result.toString()))
+                        .doOnNext(i -> log.info("result:" + result.toString()))
                         .doOnNext(i -> latch.countDown())
                         .onErrorResume(e ->
                                 receiver.doOnConsumer(consumer -> {
                                     consumer.assignment().forEach((tp) -> {
                                         if (consumer.committed(tp) != null) {
-                                            System.out.println("reset to " + consumer.committed(tp).offset());
+                                            log.info("reset to " + consumer.committed(tp).offset());
                                             consumer.seek(tp, consumer.committed(tp).offset());
                                         } else {
-                                            System.out.println("reset to beginning");
+                                            log.info("reset to beginning");
                                             consumer.seekToBeginning(Collections.singleton(tp));
                                         }
                                     });
@@ -124,8 +123,7 @@ public class ReactorKafkaTest {
                 .send(Flux.range(0, 3)
                         .map(x -> SenderRecord.create("consume.again.In", null, null, 1, "hello-" + x, 1)))
                 .then()
-                .doOnError(Throwable::printStackTrace)
-                .doOnSuccess(s -> System.out.println("Sent"))
+                .doOnSuccess(s -> log.info("Sent"))
                 .subscribe();
 
         latch.await(20, TimeUnit.SECONDS);
@@ -142,9 +140,9 @@ public class ReactorKafkaTest {
 
         f
                 .map(i -> "(" + i + ")")
-                .doOnNext(System.out::println)
+                .doOnNext(log::info)
                 .then(f.last().map(i -> "[" + i + "]"))
-                .doOnNext(System.out::println)
+                .doOnNext(log::info)
                 .block();
     }
 
@@ -157,7 +155,8 @@ public class ReactorKafkaTest {
                 })
                 .then(Mono.just(7))
                 .onErrorReturn(8)
-                .doOnNext(System.out::println)
+                .map(Integer::toUnsignedString)
+                .doOnNext(log::info)
                 .block();
 
     }

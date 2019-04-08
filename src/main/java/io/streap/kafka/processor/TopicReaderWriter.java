@@ -10,12 +10,13 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
-import reactor.kafka.sender.*;
+import reactor.kafka.sender.KafkaSender;
+import reactor.kafka.sender.SenderOptions;
+import reactor.kafka.sender.SenderRecord;
+import reactor.kafka.sender.TransactionManager;
 import reactor.util.function.Tuple2;
 
 import java.util.function.BiFunction;
-
-import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 
 public class TopicReaderWriter<K, V, KP, VP> extends ReceivingProcessor<K, V, Context, ProducerRecord<KP, VP>> {
 
