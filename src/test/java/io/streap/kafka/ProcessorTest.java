@@ -3,12 +3,14 @@ package io.streap.kafka;
 import io.streap.core.block.DefaultBlock;
 import io.streap.spring.PlatformTransaction;
 import io.streap.test.EmbeddedKafkaSupport;
+import io.streap.test.LatchWaiter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
@@ -18,11 +20,11 @@ import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.SenderRecord;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @Slf4j
 public class ProcessorTest {
@@ -55,138 +57,124 @@ public class ProcessorTest {
     }
 
     @Test
-    public void testTopicReaderOk() throws InterruptedException {
+    public void testTopicReaderOk() {
 
-        String topic = "test.topic.reader.ok.Name";
+        String topic = "test.topic.reader.ok";
         CountDownLatch latch = new CountDownLatch(3);
+        StringBuilder result = new StringBuilder();
 
-        KafkaProcessor
-                .from(receiverOptions(topic))
-                .process((records, context) -> records
-                        .map(ConsumerRecord::value)
-                        .flatMap(context.wrap(String::toUpperCase))
-                        .log()
-                        .doOnNext(x -> latch.countDown()))
-                .subscribe();
+        Flux.just(
+                KafkaProcessor
+                        .from(receiverOptions(topic))
+                        .process((records, context) -> records
+                                .map(ConsumerRecord::value)
+                                .flatMap(context.wrap(String::toUpperCase))
+                                .log("testTopicReaderOk")
+                                .doOnNext(result::append)
+                                .doOnNext(x -> latch.countDown()))
+                        .subscribe(),
 
-        // Send the names
-        KafkaSender.create(senderOptions())
-                .send(Flux.just("paul", "john", "luke")
-                        .map(name -> SenderRecord.create(topic, null, null, 1, name, 1)))
-                .then()
-                .doOnSuccess(s -> log.info("Sent"))
-                .subscribe();
+                KafkaSender.create(senderOptions())
+                        .send(Flux.just("A", "B", "C")
+                                .map(n -> SenderRecord.create(topic, null, null, 1, n, 1)))
+                        .then()
+                        .doOnSuccess(s -> log.info("Sent"))
+                        .subscribe()
+        )
+                .startWith(LatchWaiter.waitOn(latch))
+                .doOnNext(Disposable::dispose)
+                .blockLast();
 
-        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
+        assertTrue(result.toString().startsWith("ABC"));
     }
 
     @Test
-    public void testTopicReaderFailure() throws InterruptedException {
+    public void testTopicReaderFailure() {
 
-        String topic = "test.topic.reader.failure.Name";
-        CountDownLatch latch = new CountDownLatch(2);
+        String topic = "test.topic.reader.failure";
+        CountDownLatch latch = new CountDownLatch(3);
+        StringBuilder result = new StringBuilder();
 
-        KafkaProcessor
-                .from(receiverOptions(topic))
-                .withContext(() -> new DefaultBlock() {
-                    @Override
-                    public <R> Mono<R> abort() {
-                        latch.countDown();
-                        return super.abort();
-                    }
-                })
-                .process((records, context) -> records
-                        .map(ConsumerRecord::value)
-                        .log()
-                        .doOnNext(name -> {
-                            if (name.equals("john")) {
-                                throw new RuntimeException("Oh");
+        Flux.just(
+                KafkaProcessor
+                        .from(receiverOptions(topic))
+                        .withContext(() -> new DefaultBlock() {
+                            @Override
+                            public <R> Mono<R> abort() {
+                                latch.countDown();
+                                return super.abort();
                             }
-                        }))
-                .subscribe();
+                        })
+                        .process((records, context) -> records
+                                .map(ConsumerRecord::value)
+                                .flatMap(context.wrap(String::toUpperCase))
+                                .log("testTopicReaderFailure")
+                                .doOnNext(result::append)
+                                .doOnNext(n -> {
+                                    if (n.equals("B")) {
+                                        throw new RuntimeException("Oh");
+                                    }
+                                }))
+                        .subscribe(),
 
-        // Send the names
-        KafkaSender.create(senderOptions())
-                .send(Flux.just("paul", "john", "luke")
-                        .map(name -> SenderRecord.create(topic, null, null, 1, name, 1)))
-                .then()
-                .doOnSuccess(s -> log.info("Sent"))
-                .subscribe();
+                KafkaSender.create(senderOptions())
+                        .send(Flux.just("a", "b", "c")
+                                .map(n -> SenderRecord.create(topic, null, null, 1, n, 1)))
+                        .then()
+                        .doOnSuccess(s -> log.info("Sent"))
+                        .subscribe()
+        )
+                .startWith(LatchWaiter.waitOn(latch))
+                .doOnNext(Disposable::dispose)
+                .blockLast();
 
-        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
+        assertTrue(result.toString().startsWith("ABAB"));
     }
 
     @Test
-    public void testTopicReaderWriter() throws InterruptedException {
-        String topicIn = "test.topic.reader.writer.ok.input.Name";
+    public void testTopicReaderWriterOk() {
+        String topicIn = "test.topic.reader.writer.ok.input";
         String topicOut = topicIn.replace("input", "output");
         CountDownLatch latch = new CountDownLatch(3);
+        StringBuilder result = new StringBuilder();
 
-        KafkaProcessor
-                .from(receiverOptions(topicIn))
-                .to(senderOptions("txId"))
-                .process((records, context) -> records
+        Flux.just(
+                KafkaProcessor
+                        .from(receiverOptions(topicIn))
+                        .to(senderOptions("txId"))
+                        .process((records, context) -> records
+                                .map(ConsumerRecord::value)
+                                .flatMap(context.wrap(String::toUpperCase))
+                                .map(name -> new ProducerRecord<>(topicOut, name)))
+                        .subscribe(),
+
+                KafkaSender.create(senderOptions())
+                        .send(Flux.just("a", "b", "c")
+                                .map(n -> SenderRecord.create(topicIn, null, null, 1, n, 1)))
+                        .then()
+                        .doOnSuccess(s -> log.info("Sent"))
+                        .subscribe(),
+
+                KafkaReceiver
+                        .create(receiverOptions(topicOut))
+                        .receiveAutoAck()
+                        .concatMap(x -> x)
                         .map(ConsumerRecord::value)
-                        .flatMap(context.wrap(String::toUpperCase))
-                        .map(name -> new ProducerRecord<>(topicOut, name)))
-                .subscribe();
+                        .doOnNext(result::append)
+                        .log("testTopicReaderWriterOk")
+                        .doOnNext(m -> latch.countDown())
+                        .subscribe()
+        )
+                .startWith(LatchWaiter.waitOn(latch))
+                .doOnNext(Disposable::dispose)
+                .blockLast();
 
-        // Send the names
-        KafkaSender.create(senderOptions())
-                .send(Flux.just("paul", "john", "luke")
-                        .map(name -> SenderRecord.create(topicIn, null, null, 1, name, 1)))
-                .then()
-                .doOnSuccess(s -> log.info("Sent"))
-                .subscribe();
-
-        // Receive Confirmations
-        KafkaReceiver
-                .create(receiverOptions(topicOut))
-                .receive()
-                .doOnNext(m -> log.info("Received:" + m.value()))
-                .doOnNext(m -> latch.countDown())
-                .subscribe();
-
-        latch.await(10, TimeUnit.SECONDS);
         assertEquals(0L, latch.getCount());
+        assertEquals("ABC", result.toString());
     }
 
-    @Test
-    public void testTopicReaderWriter2() throws InterruptedException {
-        String topicIn = "test.topic.reader.writer.ok.input.Name";
-        String topicOut = topicIn.replace("input", "output");
-        CountDownLatch latch = new CountDownLatch(3);
-
-        KafkaProcessor
-                .from(receiverOptions(topicIn))
-                .to(senderOptions("txId"))
-                .process((records, context) -> records
-                        .map(ConsumerRecord::value)
-                        .flatMap(context.wrap(String::toUpperCase))
-                        .map(name -> new ProducerRecord<>(topicOut, name)))
-                .subscribe();
-
-        // Send the names
-        KafkaSender.create(senderOptions())
-                .send(Flux.just("paul", "john", "luke")
-                        .map(name -> SenderRecord.create(topicIn, null, null, 1, name, 1)))
-                .then()
-                .doOnSuccess(s -> log.info("Sent"))
-                .subscribe();
-
-        // Receive Confirmations
-        KafkaReceiver
-                .create(receiverOptions(topicOut))
-                .receive()
-                .doOnNext(m -> log.info("Received:" + m.value()))
-                .doOnNext(m -> latch.countDown())
-                .subscribe();
-
-        latch.await(10, TimeUnit.SECONDS);
-        assertEquals(0L, latch.getCount());
-    }
 }
 
 

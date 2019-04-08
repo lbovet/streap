@@ -11,10 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
-import reactor.kafka.sender.KafkaSender;
-import reactor.kafka.sender.SenderOptions;
-import reactor.kafka.sender.SenderRecord;
-import reactor.kafka.sender.TransactionManager;
+import reactor.kafka.sender.*;
 import reactor.util.function.Tuple2;
 
 import java.util.function.BiFunction;
@@ -41,16 +38,12 @@ public class TopicReaderWriter<K, V, KP, VP> extends ReceivingProcessor<K, V, Co
                             .concatMap(records -> {
                                 Block block = new ExactlyOnceBlock<>(transactionManager, createBlock(), records);
                                 return body.apply(records.publish().autoConnect(), block)
-                                        .transform(f -> {
-                                            f = f.publish().refCount(2);
-                                            return f.zipWith(f
-                                                    .map(p -> SenderRecord.create(p, null))
-                                                    .compose(sender::send));
-                                        })
-                                        .map(Tuple2::getT1)
-                                        .then(block.commit())
+                                        .map(p -> SenderRecord.create(p, p))
+                                        .compose(sender::send)
+                                        .map(SenderResult::correlationMetadata)
+                                        .concatWith(block.commit())
                                         .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions))
-                                        .then(Mono.empty());
+                                        .log();
                             });
                 });
     }
