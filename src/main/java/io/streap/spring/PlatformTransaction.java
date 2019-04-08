@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  */
 public class PlatformTransaction extends SingleThreadBlock {
 
-    public static Supplier<Block> supplier(TransactionTemplate transactionTemplate) {
+    public static Supplier<PlatformTransaction> supplier(TransactionTemplate transactionTemplate) {
         return () -> new PlatformTransaction(transactionTemplate);
     }
 

@@ -9,18 +9,25 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-public abstract class StreamProcessor<R,C extends Context,S> {
+public abstract class StreamProcessor<R, C extends Context, S> {
 
     public abstract <T extends S> Flux<T> process(BiFunction<Flux<? extends R>, C, Flux<T>> body);
 
-    private Supplier<Block> blockSupplier = null;
+    private Supplier<? extends Block> blockSupplier = null;
 
     protected Block createBlock() {
-        return Optional.ofNullable(blockSupplier).orElse(DefaultBlock::new).get();
+        Block result = null;
+        if (blockSupplier != null) {
+            result = blockSupplier.get();
+        }
+        if (result == null) {
+            result = new DefaultBlock();
+        }
+        return result;
     }
 
-    public StreamProcessor<R,C,S> withContext(Supplier<Block> blockSupplier) {
+    public <X extends Block> StreamProcessor<R, X, S> withContext(Supplier<X> blockSupplier) {
         this.blockSupplier = blockSupplier;
-        return this;
+        return (StreamProcessor<R, X, S>) this;
     }
 }
