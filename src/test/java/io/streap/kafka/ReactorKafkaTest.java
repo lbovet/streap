@@ -18,11 +18,15 @@ import reactor.kafka.sender.SenderRecord;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
 import static io.streap.test.EmbeddedKafkaSupport.senderOptions;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Confirms that the behaviour of underlying libraries keeps the same across versions.
+ */
 @Slf4j
 public class ReactorKafkaTest {
 
@@ -110,9 +114,6 @@ public class ReactorKafkaTest {
                                         throw new RuntimeException("Aborted when item 1 is first seen");
                                     }
                                 })
-                                .map(ConsumerRecord::value)
-                                .doOnNext(result::append)
-                                .doOnNext(i -> latch.countDown())
                                 .onErrorResume(e ->
                                         receiver.doOnConsumer(consumer -> {
                                             consumer.assignment().forEach((tp) -> {
@@ -127,6 +128,9 @@ public class ReactorKafkaTest {
                                             return null;
                                         }).then(sender.transactionManager().abort())
                                 ))
+                                .map(ConsumerRecord::value)
+                                .doOnNext(result::append)
+                                .doOnNext(i -> latch.countDown())
                         .subscribe(),
 
                 KafkaSender.create(senderOptions())
@@ -172,5 +176,12 @@ public class ReactorKafkaTest {
                 .doOnNext(log::info)
                 .block();
 
+    }
+
+    @Test
+    public void testDrain() {
+        AtomicInteger last = new AtomicInteger();
+        Flux.range(0,10000).doOnNext(last::set).publish().autoConnect().take(100).blockLast();
+        assertEquals(9999, last.get());
     }
 }

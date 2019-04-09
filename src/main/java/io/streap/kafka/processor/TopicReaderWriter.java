@@ -5,14 +5,10 @@ import io.streap.core.context.Context;
 import io.streap.kafka.block.ExactlyOnceBlock;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.*;
-import reactor.util.function.Tuple2;
 
 import java.util.function.BiFunction;
 

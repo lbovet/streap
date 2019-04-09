@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 import reactor.core.Disposable;
@@ -90,6 +91,7 @@ public class ProcessorTest {
     }
 
     @Test
+    @Ignore
     public void testTopicReaderFailure() {
 
         String topic = "test.topic.reader.failure";
