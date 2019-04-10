@@ -8,8 +8,10 @@ import io.streap.test.EmbeddedDatabaseSupport;
 import io.streap.test.EmbeddedKafkaSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.*;
-import org.springframework.kafka.test.EmbeddedKafkaBroker;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
@@ -108,7 +110,6 @@ public class ExactlyOnceBlockTest extends EmbeddedDatabaseSupport {
     }
 
     @Test
-    @Ignore
     public void testAbort() throws InterruptedException {
 
         String nameTopic = "test.abort.Name";

@@ -3,6 +3,7 @@ package io.streap.kafka.processor;
 import io.streap.core.block.Block;
 import io.streap.core.context.Context;
 import io.streap.core.processor.StreamProcessor;
+import io.streap.kafka.KafkaProcessor;
 import io.streap.kafka.block.ExactlyOnceBlock;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -13,6 +14,7 @@ import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.*;
 
+import java.time.Duration;
 import java.util.function.BiFunction;
 
 public class TopicReaderWriter<K, V, KP, VP> extends StreamProcessor<ConsumerRecord<K, V>, Context, ProducerRecord<KP, VP>> {
@@ -27,9 +29,6 @@ public class TopicReaderWriter<K, V, KP, VP> extends StreamProcessor<ConsumerRec
 
     @Override
     public <T extends ProducerRecord<KP, VP>> Flux<T> process(BiFunction<Flux<? extends ConsumerRecord<K, V>>, Context, Flux<T>> body) {
-
-        long minBackOff = (long) receiverOptions.consumerProperties().getOrDefault(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG, 100L);
-        long maxBackOff = (long) receiverOptions.consumerProperties().getOrDefault(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000L);
 
         return Flux.just(KafkaReceiver.create(receiverOptions))
                 .flatMap(receiver -> {
@@ -46,6 +45,7 @@ public class TopicReaderWriter<K, V, KP, VP> extends StreamProcessor<ConsumerRec
                                         .concatWith(block.commit())
                                         .onErrorResume(e -> block.abort().then(Mono.error(e)));
                             });
-                }).retry();
+                })
+                .compose(ProcessorConfig.configureRetries(receiverOptions));
     }
 }
