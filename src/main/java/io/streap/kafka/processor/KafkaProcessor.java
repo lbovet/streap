@@ -1,7 +1,5 @@
-package io.streap.kafka;
+package io.streap.kafka.processor;
 
-import io.streap.kafka.processor.FluxReader;
-import io.streap.kafka.processor.TopicReader;
 import reactor.core.publisher.Flux;
 import reactor.kafka.receiver.ReceiverOptions;
 

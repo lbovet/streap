@@ -39,6 +39,6 @@ public class TopicReader<K, V> extends StreamProcessor<ConsumerRecord<K, V>, Con
                             return body.apply(records, block)
                                     .concatWith(block.commit())
                                     .onErrorResume(e -> block.abort().then(Mono.error(e)));
-                        })).retry();
+                        })).compose(ErrorHandler.retry(receiverOptions));
     }
 }
