@@ -29,6 +29,7 @@ public class TopicReaderWriter<K, V, KP, VP> extends ReceivingProcessor<K, V, Co
                 .flatMap(receiver -> {
                     KafkaSender<KP, VP> sender = KafkaSender.create(senderOptions.stopOnError(true));
                     TransactionManager transactionManager = sender.transactionManager();
+
                     return receiver
                             .receiveExactlyOnce(transactionManager)
                             .concatMap(records -> {
@@ -38,8 +39,7 @@ public class TopicReaderWriter<K, V, KP, VP> extends ReceivingProcessor<K, V, Co
                                         .compose(sender::send)
                                         .map(SenderResult::correlationMetadata)
                                         .concatWith(block.commit())
-                                        .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions))
-                                        .log();
+                                        .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions));
                             });
                 });
     }
