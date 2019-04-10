@@ -7,34 +7,30 @@ import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import reactor.kafka.receiver.ReceiverOptions;
 import reactor.kafka.sender.SenderOptions;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertTrue;
 
 public class EmbeddedKafkaSupport {
 
-    private static KafkaEmbedded kafka;
+    private static EmbeddedKafkaBroker kafka;
     private static int count = 0;
 
-    public static KafkaEmbedded init() {
+    public static void init() {
         if(kafka == null) {
-            kafka = new KafkaEmbedded(1, true, 0)
+            kafka = new EmbeddedKafkaBroker(1, true, 0)
                     .brokerProperty(KafkaConfig.TransactionsTopicReplicationFactorProp(), "1")
                     .brokerProperty(KafkaConfig.TransactionsTopicMinISRProp(), "1");
+            kafka.afterPropertiesSet();
         }
         try {
             Thread.sleep(800);
         } catch (InterruptedException e) {
         }
-        return kafka;
     }
 
     public static SenderOptions<Integer,String> senderOptions() {

@@ -9,10 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -23,6 +23,7 @@ import reactor.kafka.sender.SenderOptions;
 import reactor.kafka.sender.SenderRecord;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
@@ -33,8 +34,10 @@ import static org.junit.Assert.assertTrue;
 @Slf4j
 public class ProcessorTest {
 
-    @ClassRule
-    public static KafkaEmbedded embeddedKafka = EmbeddedKafkaSupport.init();
+    @BeforeClass
+    public static void init() {
+        EmbeddedKafkaSupport.init();
+    }
 
     @Test
     public void builders() {
@@ -96,8 +99,9 @@ public class ProcessorTest {
     @Test
     public void testTopicReaderFailure() {
         String topic = ScopedName.get();
-        CountDownLatch latch = new CountDownLatch(3);
+        CountDownLatch latch = new CountDownLatch(2);
         StringBuilder result = new StringBuilder();
+        AtomicBoolean shouldFail = new AtomicBoolean(true);
 
         Flux.just(
                 KafkaProcessor
@@ -113,10 +117,16 @@ public class ProcessorTest {
                                 .map(ConsumerRecord::value)
                                 .flatMap(context.wrap(String::toUpperCase))
                                 .log(ScopedName.get())
+                                .doOnNext(n -> {
+                                    if (n.equals("B") && shouldFail.get()) {
+                                        shouldFail.set(false);
+                                        throw new RuntimeException("Oh");
+                                    }
+                                })
                                 .doOnNext(result::append)
                                 .doOnNext(n -> {
-                                    if (n.equals("B")) {
-                                        throw new RuntimeException("Oh");
+                                    if (n.equals("C")) {
+                                        latch.countDown();
                                     }
                                 }))
                         .subscribe(),
@@ -133,7 +143,10 @@ public class ProcessorTest {
                 .blockLast();
 
         assertEquals(0L, latch.getCount());
-        assertTrue(result.toString().startsWith("ABAB"));
+        log.info(result.toString());
+        assertTrue(result.toString().startsWith("A"));
+        assertTrue(result.toString().contains("B"));
+        assertTrue(result.toString().endsWith("C"));
     }
 
     @Test

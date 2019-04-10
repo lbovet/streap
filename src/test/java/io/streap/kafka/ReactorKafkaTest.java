@@ -3,11 +3,12 @@ package io.streap.kafka;
 import io.streap.test.EmbeddedKafkaSupport;
 import io.streap.test.LatchWaiter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,9 +16,7 @@ import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 
-import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.streap.test.EmbeddedKafkaSupport.receiverOptions;
@@ -30,8 +29,10 @@ import static org.junit.Assert.assertEquals;
 @Slf4j
 public class ReactorKafkaTest {
 
-    @ClassRule
-    public static KafkaEmbedded embeddedKafka = EmbeddedKafkaSupport.init();
+    @BeforeClass
+    public static void init() {
+        EmbeddedKafkaSupport.init();
+    }
 
     @Test
     public void testAtLeastOnce() {
@@ -91,64 +92,6 @@ public class ReactorKafkaTest {
     }
 
     @Test
-    public void testConsumeAgain() {
-        CountDownLatch latch = new CountDownLatch(3);
-        AtomicBoolean shouldStop = new AtomicBoolean(true);
-        StringBuffer result = new StringBuffer();
-
-        KafkaSender sender = KafkaSender.create(senderOptions()
-                .producerProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "SampleTxn"));
-
-        KafkaReceiver<Integer, String> receiver = KafkaReceiver.create(receiverOptions("consume.again.In"));
-
-        Flux.just(
-                receiver
-                        .receiveExactlyOnce(sender.transactionManager())
-                        .doOnNext(m -> log.info("Received batch"))
-                        .concatMap(f -> f
-                                .publish().autoConnect()
-                                .doOnNext(i -> log.info("Received item:" + i.value()))
-                                .doOnNext(i -> {
-                                    if (shouldStop.getAndSet(false)) {
-                                        log.info("aborting");
-                                        throw new RuntimeException("Aborted when item 1 is first seen");
-                                    }
-                                })
-                                .onErrorResume(e ->
-                                        receiver.doOnConsumer(consumer -> {
-                                            consumer.assignment().forEach((tp) -> {
-                                                if (consumer.committed(tp) != null) {
-                                                    log.info("reset to " + consumer.committed(tp).offset());
-                                                    consumer.seek(tp, consumer.committed(tp).offset());
-                                                } else {
-                                                    log.info("reset to beginning");
-                                                    consumer.seekToBeginning(Collections.singleton(tp));
-                                                }
-                                            });
-                                            return null;
-                                        }).then(sender.transactionManager().abort())
-                                ))
-                                .map(ConsumerRecord::value)
-                                .doOnNext(result::append)
-                                .doOnNext(i -> latch.countDown())
-                        .subscribe(),
-
-                KafkaSender.create(senderOptions())
-                        .send(Flux.just("a", "b", "c")
-                                .map(x -> SenderRecord.create("consume.again.In", null, null, 1, x, 1)))
-                        .then()
-                        .doOnSuccess(s -> log.info("Sent"))
-                        .subscribe()
-        )
-                .startWith(LatchWaiter.waitOn(latch))
-                .doOnNext(Disposable::dispose)
-                .blockLast();
-
-        assertEquals(0L, latch.getCount());
-        assertEquals("abc", result.toString());
-    }
-
-    @Test
     public void testCache() {
         Flux<Integer> f = Flux
                 .just(1, 2, 3, 4, 5, 6)
@@ -181,7 +124,7 @@ public class ReactorKafkaTest {
     @Test
     public void testDrain() {
         AtomicInteger last = new AtomicInteger();
-        Flux.range(0,10000).doOnNext(last::set).publish().autoConnect().take(100).blockLast();
+        Flux.range(0, 10000).doOnNext(last::set).publish().autoConnect().take(100).blockLast();
         assertEquals(9999, last.get());
     }
 }

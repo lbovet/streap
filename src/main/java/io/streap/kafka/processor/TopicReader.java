@@ -3,6 +3,7 @@ package io.streap.kafka.processor;
 import io.streap.core.block.Block;
 import io.streap.core.context.Context;
 import io.streap.core.idempotence.OffsetStore;
+import io.streap.core.processor.StreamProcessor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -12,7 +13,7 @@ import reactor.kafka.sender.SenderOptions;
 
 import java.util.function.BiFunction;
 
-public class TopicReader<K, V> extends ReceivingProcessor<K, V, Context, Object> {
+public class TopicReader<K, V> extends StreamProcessor<ConsumerRecord<K, V>, Context, Object> {
 
     private ReceiverOptions<K, V> receiverOptions;
 
@@ -35,10 +36,9 @@ public class TopicReader<K, V> extends ReceivingProcessor<K, V, Context, Object>
                         .receiveAutoAck()
                         .concatMap(records -> {
                             Block block = createBlock();
-                            return body.apply(records.publish().autoConnect(), block)
-                                    .then(block.commit())
-                                    .onErrorResume(abortAndResetOffsets(block.abort(), receiver, receiverOptions))
-                                    .then(Mono.empty());
-                        }));
+                            return body.apply(records, block)
+                                    .concatWith(block.commit())
+                                    .onErrorResume(e -> block.abort().then(Mono.error(e)));
+                        })).retry();
     }
 }
