@@ -2,15 +2,38 @@
 
 ``
 KafkaStreamProcessor
-  .<Long,Order>from(receiverOptions)   // ReceivingProcessor
-  .withIdempotence(offsetStore)    // IdempotentReceivingProcessor
+  .from(receiverOptions)
   .to(senderOptions)
-  .withContext(PlatformTransactionBlock.supplier(transactionTemplate))
-  .process((records, context) -> records
+  .transactional(() -> new PlatformTransaction(transactionTemplate))
+  .idempotent(offsetStore)
+  .using(() -> DSLContext.using(configuration))
+  .parallel(2)
+  .process((records, ctx, create) -> records
      .map(ConsumerRecord::value)
-     .flatMap(context.doOnce(audit))
-     .flatMap(context.wrap(saveName))
-     .map(createConfirmation))  // Flux<Processor>
+     .flatMap(ctx.runOnce(audit))
+     .flatMap(ctx.run(saveName))
+     .flatMap(ctx.lift(loadAddresses))
+     .map(ResultSetUtil::stream)
+     .flatMap(ctx.apply())
+     .flatMap(ctx.run( x -> create.update(AUTHOR).set(AUTHOR.FIRSTNAME, x).execute()))
+     .map(createConfirmation))  
+         
+KafkaStreamProcessor
+  .from(receiverOptions)
+  .to(senderOptions)
+  .sync(() -> new PlatformTransaction(transactionTemplate))
+  .process((records, ctx) -> records
+     .map(ConsumerRecord::value)
+     .flatMap(ctx.sync(saveName))
+     .map(createConfirmation))           
+         
+KafkaStreamProcessor
+  .from(receiverOptions)
+  .to(senderOptions)
+  .process(records -> records
+     .map(ConsumerRecord::value)
+     .map(createConfirmation))           
+      
          
 KafkaStreamProcessor
   .from(receiverOptions)
