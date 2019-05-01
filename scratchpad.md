@@ -1,19 +1,42 @@
 # Processor API
 
     KafkaStreamProcessor
-      .<Long,Order>from(receiverOptions)   // ReceivingProcessor
-      .withIdempotence(offsetStore)    // IdempotentReceivingProcessor
+      .from(receiverOptions)
       .to(senderOptions)
-      .withContext(PlatformTransactionBlock.supplier(transactionTemplate))
-      .process((records, context) -> records
+      .transactional(() -> new PlatformTransaction(transactionTemplate))
+      .idempotent(offsetStore)
+      .using(() -> DSLContext.using(configuration))
+      .parallel(2)
+      .process((records, ctx, create) -> records
          .map(ConsumerRecord::value)
-         .flatMap(context.doOnce(audit))
-         .flatMap(context.wrap(saveName))
-         .map(createConfirmation))  // Flux<Processor>
+         .flatMap(ctx.runOnce(audit))
+         .flatMap(ctx.run(saveName))
+         .flatMap(ctx.lift(loadAddresses))
+         .map(ResultSetUtil::stream)
+         .flatMap(ctx.apply())
+         .flatMap(ctx.run( x -> create.update(AUTHOR).set(AUTHOR.FIRSTNAME, x).execute()))
+         .map(createConfirmation))  
              
     KafkaStreamProcessor
       .from(receiverOptions)
-      .withContext(PlatformTransactionBlock.supplier(transactionTemplate))
+      .to(senderOptions)
+      .transactional(() -> new PlatformTransaction(transactionTemplate))
+      .process((records, ctx) -> records
+         .map(ConsumerRecord::value)
+         .flatMap(ctx.sync(saveName))
+         .map(createConfirmation))           
+             
+    KafkaStreamProcessor
+      .from(receiverOptions)
+      .to(senderOptions)
+      .process(records -> records
+         .map(ConsumerRecord::value)
+         .map(createConfirmation))           
+          
+             
+    KafkaStreamProcessor
+      .from(receiverOptions)
+      .transactional(PlatformTransactionBlock.supplier(transactionTemplate))
       .process((records, context) -> records
          .map(ConsumerRecord::value)
          .flatMap(context.wrap(saveName)))
@@ -21,7 +44,7 @@
     KafkaStreamProcessor
       .from(sourceFlux)
       .to(senderOptions)
-      .using(PlatformTransactionBlock.supplier(transactionTemplate))
+      .transactional(PlatformTransactionBlock.supplier(transactionTemplate))
       .process((lines, context) -> lines
          .map(ConsumerRecord::value)
          .flatMap(context.wrap(markAsSent))
@@ -35,12 +58,12 @@
                     .map(createConfirmation)
                     .map(createRecord)
     }
-         
+              
     StreamProcessor processor =
         KafkaStreamProcessor
           .from(receiverOptions)
           .to(senderOptions)
-          .withContext(PlatformTransactionBlock.supplier(transactionTemplate));
+          .transactional(PlatformTransactionBlock.supplier(transactionTemplate));
                 
     processor.process(saveAndConfirmRecords).blockLast();
     
