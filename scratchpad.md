@@ -114,9 +114,8 @@
             sequencer.add(record)
             window.add(new WindowItem(record.offset, record.timestamp)
         .zipWith(timer)
-        .doOnNext( r ->
-            if(window.update())
-                performWrites()
+        .doOnNext( r -> window.update() )
+        .doOnNext( r -> performWrites() )
             
     performWrites()        
         sequencer.selectAlso(r.offset < window.start().offset)
@@ -167,14 +166,11 @@
             items.addLast(item)
         update()
             if(!items.empty() && itemsPeekLast().timestamp > items.peekFirst().timestamp + duration)
-                items.removeFirst()
-        isSliding()
-            return         
- 
+                items.removeFirst() 
         first() 
-           return items.peekFirst().offset                    
+           return items.peekFirst()                 
         last()
-            end = items.peekLast().offset
+            end = items.peekLast()
             
 
 
