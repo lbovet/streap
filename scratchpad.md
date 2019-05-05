@@ -110,9 +110,9 @@
     last = output.poll(output.committed() - 1)
     
     input.seek(last.window.start || 0)
-        .process(record ->
+        .doOnNext(record ->
             sequencer.add(record)
-            window.add(new WindowItem(record.offset, record.timestamp)
+            window.add(record)
         .zipWith(timer)
         .doOnNext( r -> window.update() )
         .doOnNext( r -> performWrites() )

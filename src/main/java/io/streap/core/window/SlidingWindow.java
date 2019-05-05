@@ -2,18 +2,21 @@ package io.streap.core.window;
 
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.function.ToLongFunction;
 
 /**
- * Maintains a sliding window over a multiple items. Item position is a long value
+ * Maintains a sliding window over multiple items. Ticks are monotonic long values
  * that can represent time (but must not).
  */
-public abstract class SlidingWindow<T> {
+public class SlidingWindow<T> {
 
     private long size;
     private Deque<T> items = new LinkedList<>();
+    private ToLongFunction<T> resolveTick;
 
-    public SlidingWindow(long size) {
+    public SlidingWindow(long size, ToLongFunction<T> resolveTick) {
         this.size = size;
+        this.resolveTick = resolveTick;
     }
 
     /**
@@ -27,10 +30,21 @@ public abstract class SlidingWindow<T> {
      * Updates the window boundaries according to the last added items.
      */
     public void update() {
-        while(!items.isEmpty() && position(items.peekLast()) > position(items.peekFirst()) + size) {
+        while (!items.isEmpty() &&
+                resolveTick.applyAsLong(items.peekLast()) > resolveTick.applyAsLong(items.peekFirst()) + size) {
             items.removeFirst();
         }
     }
 
-    protected abstract long position(T item);
+    public T first() {
+        return items.peekFirst();
+    }
+
+    public T last() {
+        return items.peekLast();
+    }
+
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
 }
