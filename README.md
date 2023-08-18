@@ -1,7 +1,7 @@
 # Streap
 [![Build Status](https://travis-ci.org/lbovet/streap.svg?branch=master)](https://travis-ci.org/lbovet/streap)
 
-<p align='right'>A <a href="http://www.swisspush.org">swisspush</a> project <a href="http://www.swisspush.org" border=0><img align="top"  src='https://1.gravatar.com/avatar/cf7292487846085732baf808def5685a?s=32'></a></p>
+<p align='right'>A <a href="https://developer.post.ch/">swisspost</a> project <a href="https://developer.post.ch/" border=0> <img align="top"  src='https://avatars.githubusercontent.com/u/92710854?s=32&v=4'></a></p>
 
 <p align='center'><img src='https://user-images.githubusercontent.com/692124/51073824-f0001500-1676-11e9-9300-b89f090f89b5.png' /></p>
 
